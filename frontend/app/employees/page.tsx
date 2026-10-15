@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { Plus, Edit2, Trash2, Users } from 'lucide-react';
 import { Table, Column, Button, Dialog, Badge } from '@/components/ui';
-import { apiCall } from '@/lib/api-client';
 
 interface Employee {
   id: string;
@@ -38,8 +37,9 @@ export default function EmployeesPage() {
     const fetchEmployees = async () => {
       try {
         setLoading(true);
-        const { data } = await apiCall.get<Employee[]>('/api/employees');
-        setEmployees(data);
+        const response = await fetch('/api/employees');
+        const data = await response.json();
+        setEmployees(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Failed to fetch employees:', error);
         setEmployees([]);
@@ -88,13 +88,53 @@ export default function EmployeesPage() {
   const handleDelete = async () => {
     if (!deleteDialog.employee) return;
 
+    const deactivatedId = deleteDialog.employee.id;
     try {
-      await apiCall.delete(`/api/employees/${deleteDialog.employee.id}`);
-      setEmployees(employees.filter((e) => e.id !== deleteDialog.employee!.id));
+      const response = await fetch(`/api/employees/${encodeURIComponent(deactivatedId)}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to deactivate employee');
+      }
+      // Soft delete: the record stays, marked INACTIVE
+      setEmployees((prev) =>
+        prev.map((e) => (e.id === deactivatedId ? { ...e, status: 'INACTIVE' } : e))
+      );
       setDeleteDialog({ isOpen: false, employee: null });
     } catch (error) {
-      console.error('Failed to delete employee:', error);
+      console.error('Failed to deactivate employee:', error);
+      alert(error instanceof Error ? error.message : 'Failed to deactivate employee');
     }
+  };
+
+  // Only admins can add, edit or deactivate employees (enforced by the backend too)
+  const isAdmin = session?.user?.role === 'ADMIN';
+  const canEdit = isAdmin;
+
+  const actionsColumn: Column<Employee> = {
+    key: 'id',
+    label: 'Actions',
+    render: (value, row) => (
+      <div className="flex items-center gap-2">
+        <Link
+          href={`/employees/${value}/edit`}
+          className="p-1 text-moss-600 hover:bg-moss-50 rounded transition-colors"
+          title="Edit"
+        >
+          <Edit2 size={18} />
+        </Link>
+        {row.status !== 'INACTIVE' && (
+          <button
+            onClick={() => setDeleteDialog({ isOpen: true, employee: row })}
+            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+            title="Deactivate"
+          >
+            <Trash2 size={18} />
+          </button>
+        )}
+      </div>
+    ),
   };
 
   const columns: Column<Employee>[] = [
@@ -123,40 +163,15 @@ export default function EmployeesPage() {
     },
     {
       key: 'status',
-      label: 'Type',
+      label: 'Status',
       render: (value) => (
         <Badge variant="info" size="sm">
           {value}
         </Badge>
       ),
     },
-    {
-      key: 'id',
-      label: 'Actions',
-      render: (value, row) => (
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/employees/${value}/edit`}
-            className="p-1 text-moss-600 hover:bg-moss-50 rounded transition-colors"
-            title="Edit"
-          >
-            <Edit2 size={18} />
-          </Link>
-          <button
-            onClick={() => setDeleteDialog({ isOpen: true, employee: row })}
-            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-            title="Delete"
-          >
-            <Trash2 size={18} />
-          </button>
-        </div>
-      ),
-    },
+    ...(isAdmin ? [actionsColumn] : []),
   ];
-
-  const isAdmin = session?.user?.role === 'ADMIN';
-  const isManager = session?.user?.role === 'MANAGER';
-  const canEdit = isAdmin || isManager;
 
   return (
     <div className="space-y-8">
@@ -253,9 +268,9 @@ export default function EmployeesPage() {
       <Dialog
         isOpen={deleteDialog.isOpen}
         type="error"
-        title="Delete Employee"
-        message={`Are you sure you want to delete ${deleteDialog.employee?.user.firstName} ${deleteDialog.employee?.user.lastName}? This action cannot be undone.`}
-        confirmText="Delete"
+        title="Deactivate Employee"
+        message={`Deactivate ${deleteDialog.employee?.user.firstName} ${deleteDialog.employee?.user.lastName}? They will no longer be able to sign in. Their leave and attendance history is kept, and you can reactivate them from Edit.`}
+        confirmText="Deactivate"
         cancelText="Cancel"
         isDangerous
         onClose={() => setDeleteDialog({ isOpen: false, employee: null })}

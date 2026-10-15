@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, Heart, User, Info } from 'lucide-react';
 import Link from 'next/link';
 import { LeaveForm } from '@/components/leave/leave-form';
-import { apiCall } from '@/lib/api-client';
 
 interface LeaveBalance {
   vacationDays: { total: number; used: number; available: number };
@@ -13,6 +12,10 @@ interface LeaveBalance {
   personalDays: { total: number; used: number; available: number };
   pendingRequests: number;
 }
+
+// Decorative header pattern. Set inline rather than as a Tailwind arbitrary background class: Turbopack
+// (Next 16.4) tries to resolve data: URLs found in generated CSS as files and fails the build.
+const HEADER_PATTERN = "url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yIDItNCAyLTRzMiAyIDIgNHYyYzAgMi0yIDQtMiA0cy0yLTItMi00di0yem0wLTMwYzAtMiAyLTQgMi00czIgMiAyIDR2MmMwIDItMiA0LTIgNHMtMi0yLTItNFY0eiIvPjwvZz48L2c+PC9zdmc+')";
 
 export default function RequestLeavePage() {
   const router = useRouter();
@@ -28,8 +31,9 @@ export default function RequestLeavePage() {
   useEffect(() => {
     const fetchBalance = async () => {
       try {
-        const { data } = await apiCall.get<LeaveBalance>('/api/leave/balance');
-        setLeaveBalance(data);
+        const response = await fetch('/api/leave/balance');
+        if (!response.ok) throw new Error(`Leave balance request failed (${response.status})`);
+        setLeaveBalance(await response.json());
       } catch (error) {
         console.error('Failed to fetch leave balance:', error);
       }
@@ -52,10 +56,18 @@ export default function RequestLeavePage() {
       if (data.attachment) {
         formData.append('attachment', data.attachment);
       }
-      
+
       // Don't set Content-Type header - let browser set it with boundary
-      await apiCall.post('/api/leave', formData);
-      
+      const response = await fetch('/api/leave', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to submit leave request');
+      }
+
       setShowSuccess(true);
       // Reset form would go here if needed
     } catch (error) {
@@ -70,7 +82,7 @@ export default function RequestLeavePage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header with gradient background */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-moss-600 to-moss-800 p-8 mb-8 shadow-xl">
-          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yIDItNCAyLTRzMiAyIDIgNHYyYzAgMi0yIDQtMiA0cy0yLTItMi00di0yem0wLTMwYzAtMiAyLTQgMi00czIgMiAyIDR2MmMwIDItMiA0LTIgNHMtMi0yLTItNFY0eiIvPjwvZz48L2c+PC9zdmc+')] opacity-10"></div>
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: HEADER_PATTERN }}></div>
           <div className="relative flex items-start justify-between">
             <div>
               <button

@@ -1,85 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { generateEmployeeId, hashPassword } from '@/lib/auth';
+import { generateTemporaryPassword, hashPassword } from '@/lib/auth';
+import { withAuth } from '@/lib/rbac';
+import { createEmployeeRecord, isUniqueViolation } from '@/lib/employee';
+import { toDbDate } from '@/lib/dates';
+import { dateStringSchema, emailSchema, optionalTextSchema, parseJson } from '@/lib/validation';
+
+const createEmployeeSchema = z.object({
+  firstName: z.string().trim().min(1, 'First name is required').max(100),
+  lastName: z.string().trim().min(1, 'Last name is required').max(100),
+  email: emailSchema,
+  phone: optionalTextSchema,
+  department: optionalTextSchema,
+  position: z.string().trim().min(2, 'Position is required').max(100),
+  hireDate: dateStringSchema.optional(),
+});
 
 export async function POST(req: NextRequest) {
+  const authResult = await withAuth(req, ['ADMIN']);
+  if (authResult instanceof NextResponse) return authResult;
+
+  const data = await parseJson(req, createEmployeeSchema);
+  if (data instanceof NextResponse) return data;
+
   try {
-    const userId = req.headers.get('X-User-Id');
-    const userRole = req.headers.get('X-User-Role');
-    
-    if (!userId || userRole !== 'ADMIN') {
-      return NextResponse.json(
-        { error: 'Unauthorized - Admin access required' },
-        { status: 403 }
-      );
-    }
-
-    const { firstName, lastName, email, position, department, phone } =
-      await req.json();
-
-    // Validate required fields
-    if (!firstName || !lastName || !email || !position) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
-    // Check if user exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
+    // Older accounts may have mixed-case emails, so compare case-insensitively
+    const existingUser = await prisma.user.findFirst({
+      where: { email: { equals: data.email, mode: 'insensitive' } },
     });
 
     if (existingUser) {
       return NextResponse.json(
-        { error: 'User already exists' },
-        { status: 400 }
+        { error: 'User with this email already exists' },
+        { status: 409 }
       );
     }
 
-    // Hash default password
-    const defaultPassword = await hashPassword('password123');
+    // Each new account gets its own random password, shown to the admin once
+    const temporaryPassword = generateTemporaryPassword();
+    const hashedPassword = await hashPassword(temporaryPassword);
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: defaultPassword,
-        firstName,
-        lastName,
-        department,
-        phone,
-        role: 'EMPLOYEE',
-      },
-    });
+    // Create user, employee record and leave balance together
+    const employee = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email: data.email,
+          password: hashedPassword,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          department: data.department,
+          phone: data.phone,
+          role: 'EMPLOYEE',
+        },
+      });
 
-    // Generate employee ID
-    const employeeCount = await prisma.employee.count();
-    const employeeId = generateEmployeeId(employeeCount);
-
-    // Create employee
-    const employee = await prisma.employee.create({
-      data: {
-        employeeId,
+      return createEmployeeRecord(tx, {
         userId: user.id,
-        position,
-        hireDate: new Date(),
-      },
-    });
-
-    // Create leave balance
-    await prisma.leaveBalance.create({
-      data: {
-        employeeId: employee.id,
-        year: new Date().getFullYear(),
-      },
+        position: data.position,
+        hireDate: data.hireDate ? toDbDate(data.hireDate) : undefined,
+      });
     });
 
     return NextResponse.json(
-      { message: 'Employee created', employeeId },
+      {
+        message: 'Employee created',
+        id: employee.id,
+        employeeId: employee.employeeId,
+        temporaryPassword,
+      },
       { status: 201 }
     );
   } catch (error) {
+    if (isUniqueViolation(error)) {
+      return NextResponse.json(
+        { error: 'User with this email already exists' },
+        { status: 409 }
+      );
+    }
     console.error(error);
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -88,17 +86,13 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// GET /api/employees - full directory incl. phone numbers and leave balances,
+// so ADMIN/MANAGER only (matches the sidebar, which hides Employees from others)
 export async function GET(req: NextRequest) {
-  try {
-    const userId = req.headers.get('X-User-Id');
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+  const authResult = await withAuth(req, ['ADMIN', 'MANAGER']);
+  if (authResult instanceof NextResponse) return authResult;
 
+  try {
     const employees = await prisma.employee.findMany({
       include: {
         user: {

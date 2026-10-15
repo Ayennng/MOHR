@@ -1,21 +1,26 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { Clock, LogIn, LogOut, Calendar, CheckCircle, XCircle, AlertCircle, TrendingUp } from 'lucide-react';
+import { Clock, LogIn, LogOut, Calendar, CheckCircle, XCircle, AlertCircle, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Table, Column, Button, StatusBadge } from '@/components/ui';
-import { apiCall } from '@/lib/api-client';
 import AttendanceConfirmationModal from '@/components/attendance/attendance-confirmation-modal';
 
 interface AttendanceRecord {
   id: string;
   employeeId: string;
-  employeeName: string;
-  date: string;
-  checkInTime?: string;
-  checkOutTime?: string;
+  date: string; // YYYY-MM-DD
+  checkInTime: string | null;
+  checkOutTime: string | null;
   status: 'PRESENT' | 'ABSENT' | 'LATE' | 'HALF_DAY';
-  duration?: number;
+  duration: number | null; // worked minutes
+}
+
+/** "2026-10" shifted by `delta` months, e.g. shiftMonth("2026-01", -1) === "2025-12". */
+function shiftMonth(month: string, delta: number) {
+  const [year, monthNumber] = month.split('-').map(Number);
+  const d = new Date(Date.UTC(year, monthNumber - 1 + delta, 1));
+  return d.toISOString().slice(0, 7);
 }
 
 export default function AttendancePage() {
@@ -29,6 +34,11 @@ export default function AttendancePage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'checkin' | 'checkout'>('checkin');
   const [isProcessing, setIsProcessing] = useState(false);
+  // Company-timezone date (YYYY-MM-DD) reported by the backend
+  const [today, setToday] = useState<string>('');
+  // Month requested by the user (YYYY-MM, '' = current) and the month actually shown
+  const [month, setMonth] = useState<string>('');
+  const [viewedMonth, setViewedMonth] = useState<string>('');
 
   // Update current time
   useEffect(() => {
@@ -40,50 +50,37 @@ export default function AttendancePage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch attendance records
+  // Fetch one month of records ('' = current month). The backend says which date is
+  // "today" in company time and always includes today's record for the check-in button.
+  const loadRecords = useCallback(async () => {
+    const [year, monthNumber] = month ? month.split('-') : [];
+    const query = month ? `?year=${year}&month=${Number(monthNumber)}` : '';
+    const response = await fetch(`/api/attendance${query}`);
+    if (!response.ok) throw new Error(`Attendance request failed (${response.status})`);
+    const data: {
+      today: string;
+      month: string;
+      todayRecord: AttendanceRecord | null;
+      records: AttendanceRecord[];
+    } = await response.json();
+
+    setRecords(data.records);
+    setToday(data.today);
+    setViewedMonth(data.month);
+
+    // Checked in = today's record has a check-in and no check-out yet
+    setCheckedIn(!!(data.todayRecord?.checkInTime && !data.todayRecord.checkOutTime));
+  }, [month]);
+
   useEffect(() => {
-    const fetchRecords = async () => {
-      try {
-        setLoading(true);
-        const { data } = await apiCall.get<AttendanceRecord[]>('/api/attendance');
-        setRecords(data);
-        
-        console.log('📦 All attendance records:', data);
-        console.log('📦 First record date:', data[0]?.date);
-        
-        // Check if user has checked in today
-        const today = new Date();
-        const todayDateStr = today.toISOString().split('T')[0];
-        
-        console.log('📅 Looking for date:', todayDateStr);
-        
-        const todayRecord = data.find((r: AttendanceRecord) => {
-          // Handle date comparison properly (the date field is a string from DB)
-          const recordDate = r.date.split('T')[0]; // Get YYYY-MM-DD part only
-          console.log('🔍 Comparing:', recordDate, '===', todayDateStr, '?', recordDate === todayDateStr);
-          return recordDate === todayDateStr;
-        });
-        
-        // User is checked in if: has today's record, has checkInTime, and no checkOutTime
-        const isCheckedIn = !!(todayRecord && todayRecord.checkInTime && !todayRecord.checkOutTime);
-        
-        console.log('📅 Today:', todayDateStr);
-        console.log('🔍 Today\'s record:', todayRecord);
-        console.log('🔑 Check in time:', todayRecord?.checkInTime);
-        console.log('🔓 Check out time:', todayRecord?.checkOutTime);
-        console.log('✅ Checked in status:', isCheckedIn);
-        
-        setCheckedIn(isCheckedIn);
-      } catch (error) {
+    setLoading(true);
+    loadRecords()
+      .catch((error) => {
         console.error('Failed to fetch attendance records:', error);
         setRecords([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRecords();
-  }, []);
+      })
+      .finally(() => setLoading(false));
+  }, [loadRecords]);
 
   const handleCheckInClick = () => {
     setConfirmAction('checkin');
@@ -97,48 +94,22 @@ export default function AttendancePage() {
 
   const handleConfirmAction = async () => {
     if (isProcessing) return;
-    
+
     setIsProcessing(true);
     try {
-      if (confirmAction === 'checkin') {
-        await apiCall.post('/api/attendance/checkin');
-      } else {
-        await apiCall.post('/api/attendance/checkout');
+      const response = await fetch(`/api/attendance/${confirmAction}`, { method: 'POST' });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `Failed to ${confirmAction === 'checkin' ? 'check in' : 'check out'}`);
       }
-      
-      // Refresh records and update checked-in state
-      const { data } = await apiCall.get<AttendanceRecord[]>('/api/attendance');
-      setRecords(data);
-      
-      // Re-check today's record after refresh
-      const today = new Date();
-      const todayDateStr = today.toISOString().split('T')[0];
-      const todayRecord = data.find((r: AttendanceRecord) => {
-        const recordDate = r.date.split('T')[0];
-        return recordDate === todayDateStr;
-      });
-      
-      // User is checked in if: has today's record, has checkInTime, and no checkOutTime
-      const isCheckedIn = !!(todayRecord && todayRecord.checkInTime && !todayRecord.checkOutTime);
-      
-      setCheckedIn(isCheckedIn);
-      console.log('🔄 After action - Today\'s record:', todayRecord);
-      console.log('🔄 After action - Check in time:', todayRecord?.checkInTime);
-      console.log('🔄 After action - Check out time:', todayRecord?.checkOutTime);
-      console.log('🔄 After action - Checked in:', isCheckedIn);
-      
-      // Close modal
+
+      await loadRecords();
       setShowConfirmModal(false);
-      
-      // Show success message
-      const successMessage = confirmAction === 'checkin' 
-        ? '✓ Successfully checked in!' 
-        : '✓ Successfully checked out!';
-      alert(successMessage);
-    } catch (error: any) {
+
+      alert(confirmAction === 'checkin' ? '✓ Successfully checked in!' : '✓ Successfully checked out!');
+    } catch (error) {
       console.error(`${confirmAction} failed:`, error);
-      const errorMessage = error.response?.data?.error || `Failed to ${confirmAction}`;
-      alert(errorMessage);
+      alert(error instanceof Error ? error.message : `Failed to ${confirmAction}`);
     } finally {
       setIsProcessing(false);
     }
@@ -167,15 +138,11 @@ export default function AttendancePage() {
     }
   };
 
-  // Calculate stats from actual data
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-  
-  const thisMonthRecords = records.filter(r => {
-    const recordDate = new Date(r.date + 'T00:00:00Z');
-    return recordDate.getMonth() === currentMonth && recordDate.getFullYear() === currentYear;
-  });
+  // Stats describe the month being viewed (the backend returns one month at a time)
+  const thisMonthRecords = records;
+  const monthLabel = viewedMonth
+    ? new Date(`${viewedMonth}-01T00:00:00Z`).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    : '';
 
   const presentDays = thisMonthRecords.filter(r => r.status === 'PRESENT' || r.status === 'LATE').length;
   const absentDays = thisMonthRecords.filter(r => r.status === 'ABSENT').length;
@@ -197,14 +164,14 @@ export default function AttendancePage() {
       key: 'date',
       label: 'Date',
       sortable: true,
-      render: (value) => {
-        const date = new Date(value);
-        return date.toLocaleDateString('en-US', {
+      render: (value) =>
+        // A calendar date, not an instant: format in UTC so it never shifts a day
+        new Date(`${value}T00:00:00Z`).toLocaleDateString('en-US', {
           year: 'numeric',
           month: 'short',
           day: 'numeric',
-        });
-      },
+          timeZone: 'UTC',
+        }),
     },
     {
       key: 'checkInTime',
@@ -237,7 +204,7 @@ export default function AttendancePage() {
     {
       key: 'duration',
       label: 'Duration',
-      render: (value) => (value ? `${value} hours` : '-'),
+      render: (value) => (value != null ? `${Math.floor(value / 60)}h ${value % 60}m` : '-'),
     },
     {
       key: 'status',
@@ -369,7 +336,7 @@ export default function AttendancePage() {
               <p className="text-sm font-semibold text-red-600 uppercase tracking-wide">Absent Days</p>
               <p className="text-4xl font-bold text-red-900 mt-1">{absentDays}</p>
             </div>
-            <p className="text-xs text-red-600 font-medium">{absentDays > 0 ? 'This month' : 'No absences'}</p>
+            <p className="text-xs text-red-600 font-medium">{absentDays > 0 ? `In ${monthLabel}` : 'No absences'}</p>
           </div>
         </div>
 
@@ -387,7 +354,7 @@ export default function AttendancePage() {
               <p className="text-sm font-semibold text-amber-600 uppercase tracking-wide">Late Arrivals</p>
               <p className="text-4xl font-bold text-amber-900 mt-1">{lateDays}</p>
             </div>
-            <p className="text-xs text-amber-600 font-medium">Times this month</p>
+            <p className="text-xs text-amber-600 font-medium">Times in {monthLabel}</p>
           </div>
         </div>
 
@@ -417,10 +384,28 @@ export default function AttendancePage() {
             <span className="w-2 h-8 bg-linear-to-b from-moss-500 to-moss-700 rounded-full"></span>
             Attendance History
           </h2>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-moss-900 bg-moss-100 px-4 py-2 rounded-full font-semibold border border-moss-200">
-              Latest 30 days
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMonth(shiftMonth(viewedMonth, -1))}
+              disabled={!viewedMonth || loading}
+              className="p-2 rounded-full hover:bg-moss-100 text-moss-700 disabled:opacity-40"
+              aria-label="Previous month"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span className="text-sm text-moss-900 bg-moss-100 px-4 py-2 rounded-full font-semibold border border-moss-200 min-w-36 text-center">
+              {monthLabel}
             </span>
+            <button
+              type="button"
+              onClick={() => setMonth(shiftMonth(viewedMonth, 1))}
+              disabled={!viewedMonth || loading || viewedMonth >= today.slice(0, 7)}
+              className="p-2 rounded-full hover:bg-moss-100 text-moss-700 disabled:opacity-40"
+              aria-label="Next month"
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
         </div>
         <Table<AttendanceRecord>

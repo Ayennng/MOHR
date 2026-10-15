@@ -1,9 +1,10 @@
 import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
 
-export const middleware = withAuth(
-  function onSuccess(req) {
-    // Allow the request to proceed
+// Next.js 16 "proxy" (formerly middleware): sends signed-out visitors to /login.
+// This only guards pages; every API route is authorised again by the backend.
+export const proxy = withAuth(
+  function onSuccess() {
     return NextResponse.next();
   },
   {
@@ -16,18 +17,7 @@ export const middleware = withAuth(
   }
 );
 
-// Configure which routes require authentication
 export const config = {
-  matcher: [
-    // Protect all routes under /dashboard
-    '/dashboard/:path*',
-    // Protect other admin routes
-    '/employees/:path*',
-    '/leave/:path*',
-    '/attendance/:path*',
-    '/rooms/:path*',
-    '/reports/:path*',
-    // Exclude public routes and API
-    '/((?!api|_next/static|_next/image|favicon.ico|login|register).*)',
-  ],
+  // Every page except the public ones (login, register), API routes and static assets
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|login|register).*)'],
 };

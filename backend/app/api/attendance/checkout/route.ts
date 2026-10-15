@@ -1,29 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { withAuth } from '@/lib/rbac';
+import { getCompanyTimezone, toDbDate, zonedDateString } from '@/lib/dates';
 
 export async function POST(req: NextRequest) {
+  const authResult = await withAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+  const { user } = authResult;
+
   try {
-    // Get user ID from headers (sent by frontend proxy)
-    const userId = req.headers.get('X-User-Id');
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
     const employee = await prisma.employee.findUnique({
       where: { userId: user.id },
     });
@@ -35,23 +20,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const today = new Date();
-    // Create date string in YYYY-MM-DD format to avoid timezone issues
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const todayDateStr = `${year}-${month}-${day}`;
-    const todayUTC = new Date(`${todayDateStr}T00:00:00.000Z`); // Force UTC
+    const now = new Date();
+    const today = toDbDate(zonedDateString(now, await getCompanyTimezone()));
 
     // Find today's attendance record
-    const attendance = await prisma.attendance.findFirst({
+    const attendance = await prisma.attendance.findUnique({
       where: {
-        employeeId: employee.id,
-        date: todayUTC,
+        employeeId_date: { employeeId: employee.id, date: today },
       },
     });
 
-    if (!attendance) {
+    if (!attendance || !attendance.checkInTime) {
       return NextResponse.json(
         { error: 'No check-in record found for today' },
         { status: 400 }
@@ -65,48 +44,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Cooldown check: prevent rapid check-outs (within 1 minute of last check-out)
-    const recentCheckOut = await prisma.attendance.findFirst({
-      where: {
-        employeeId: employee.id,
-        checkOutTime: {
-          gte: new Date(Date.now() - 60000), // Last 1 minute
-        },
-      },
-      orderBy: {
-        checkOutTime: 'desc',
-      },
-    });
-
-    if (recentCheckOut) {
-      return NextResponse.json(
-        { error: 'Please wait a moment before checking out again.' },
-        { status: 429 }
-      );
-    }
-
     // Minimum work duration check (at least 1 minute since check-in)
-    const checkInTime = new Date(attendance.checkInTime);
-    const now = new Date();
-    const timeDiff = now.getTime() - checkInTime.getTime();
-    
-    if (timeDiff < 60000) { // Less than 1 minute
+    if (now.getTime() - attendance.checkInTime.getTime() < 60000) {
       return NextResponse.json(
         { error: 'You must be checked in for at least 1 minute before checking out.' },
         { status: 400 }
       );
     }
 
-    const updatedAttendance = await prisma.attendance.update({
-      where: {
-        id: attendance.id,
-      },
-      data: {
-        checkOutTime: now,
-      },
+    // Only update if still checked in, so two simultaneous check-outs can't both succeed
+    const { count } = await prisma.attendance.updateMany({
+      where: { id: attendance.id, checkOutTime: null },
+      data: { checkOutTime: now },
     });
 
-    return NextResponse.json(updatedAttendance);
+    if (count === 0) {
+      return NextResponse.json(
+        { error: 'Already checked out today' },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({ ...attendance, checkOutTime: now });
   } catch (error) {
     console.error(error);
     return NextResponse.json(

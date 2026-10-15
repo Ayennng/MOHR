@@ -7,7 +7,6 @@ import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FormField } from './form-field';
-import { apiCall } from '@/lib/api-client';
 
 const registerSchema = z.object({
   firstName: z.string()
@@ -17,9 +16,12 @@ const registerSchema = z.object({
   email: z.string()
     .email('Please enter a valid email address'),
   password: z.string()
-    .min(6, 'Password must be at least 6 characters'),
+    .min(8, 'Password must be at least 8 characters')
+    .max(72, 'Password must be at most 72 characters')
+    .regex(/[A-Za-z]/, 'Password must contain a letter')
+    .regex(/[0-9]/, 'Password must contain a number'),
   confirmPassword: z.string()
-    .min(6, 'Password confirmation is required'),
+    .min(1, 'Password confirmation is required'),
   position: z.string()
     .min(2, 'Position is required'),
   department: z.string()
@@ -63,6 +65,7 @@ export function RegisterForm() {
           lastName: data.lastName,
           email: data.email,
           password: data.password,
+          position: data.position,
           department: data.department,
           phone: data.phone,
         }),

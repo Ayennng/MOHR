@@ -44,7 +44,13 @@ export function LoginForm() {
       });
 
       if (!result?.ok) {
-        setError(result?.error || 'Invalid email or password');
+        // "CredentialsSignin" is NextAuth's code for a rejected login; anything else
+        // is a message thrown by authorize() (e.g. too many attempts)
+        setError(
+          !result?.error || result.error === 'CredentialsSignin'
+            ? 'Invalid email or password'
+            : result.error
+        );
         return;
       }
 

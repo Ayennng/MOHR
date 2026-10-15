@@ -1,96 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth';
+import { createEmployeeRecord, isUniqueViolation } from '@/lib/employee';
+import { emailSchema, optionalTextSchema, parseJson, passwordSchema } from '@/lib/validation';
 
+const registerSchema = z.object({
+  email: emailSchema,
+  password: passwordSchema,
+  firstName: z.string().trim().min(1, 'First name is required').max(100),
+  lastName: z.string().trim().min(1, 'Last name is required').max(100),
+  position: optionalTextSchema,
+  department: optionalTextSchema,
+  phone: optionalTextSchema,
+});
+
+const emailTaken = () =>
+  NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });
+
+// POST /api/auth/register - public self sign-up; always creates an EMPLOYEE
 export async function POST(request: NextRequest) {
+  const data = await parseJson(request, registerSchema);
+  if (data instanceof NextResponse) return data;
+
   try {
-    const body = await request.json();
-    const { email, password, firstName, lastName, department, phone } = body;
-
-    // Validation
-    if (!email || !password || !firstName || !lastName) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { error: 'Invalid email format' },
-        { status: 400 }
-      );
-    }
-
-    // Password validation (min 8 characters)
-    if (password.length < 8) {
-      return NextResponse.json(
-        { error: 'Password must be at least 8 characters long' },
-        { status: 400 }
-      );
-    }
-
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
+    // Older accounts may have mixed-case emails, so compare case-insensitively
+    const existingUser = await prisma.user.findFirst({
+      where: { email: { equals: data.email, mode: 'insensitive' } },
     });
+    if (existingUser) return emailTaken();
 
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'User with this email already exists' },
-        { status: 409 }
-      );
-    }
-
-    // Hash password
-    const hashedPassword = await hashPassword(password);
+    const hashedPassword = await hashPassword(data.password);
 
     // Create user and employee record in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Create user
       const user = await tx.user.create({
         data: {
-          email,
+          email: data.email,
           password: hashedPassword,
-          firstName,
-          lastName,
-          department: department || null,
-          phone: phone || null,
-          role: 'EMPLOYEE', // Default role
+          firstName: data.firstName,
+          lastName: data.lastName,
+          department: data.department,
+          phone: data.phone,
+          role: 'EMPLOYEE', // Self-registration never grants elevated roles
           active: true,
         },
       });
 
-      // Generate employee ID
-      const employeeCount = await tx.employee.count();
-      const employeeId = `EMP${String(employeeCount + 1).padStart(4, '0')}`;
-
-      // Create employee record
-      const employee = await tx.employee.create({
-        data: {
-          employeeId,
-          userId: user.id,
-          position: department || 'Employee',
-          hireDate: new Date(),
-          status: 'ACTIVE',
-        },
-      });
-
-      // Create leave balance for current year
-      const currentYear = new Date().getFullYear();
-      await tx.leaveBalance.create({
-        data: {
-          employeeId: employee.id,
-          year: currentYear,
-          vacationDays: 20,
-          sickDays: 10,
-          personalDays: 5,
-          usedVacation: 0,
-          usedSick: 0,
-          usedPersonal: 0,
-        },
+      // Create employee record (unique ID) and leave balance
+      await createEmployeeRecord(tx, {
+        userId: user.id,
+        position: data.position || data.department || 'Employee',
       });
 
       return user;
@@ -113,6 +73,8 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
+    // Another registration with this email landed at the same moment
+    if (isUniqueViolation(error)) return emailTaken();
     console.error('Registration error:', error);
     return NextResponse.json(
       { error: 'Failed to register user' },

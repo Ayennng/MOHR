@@ -1,172 +1,131 @@
 # MOHR - Modern HR Management System
 
-**MOHR (Modern HR)** is a comprehensive, nature-inspired HR management system built with Next.js, designed to streamline employee management, leave requests, attendance tracking, room booking, and dashboard analytics.
+**MOHR (Modern HR)** is an HR management system for employee records, leave requests, attendance, meeting-room booking and reporting, built as two Next.js apps (a UI and an API) over PostgreSQL.
 
-**Theme**: Moss Growth 🌿 - A nature-inspired design philosophy for modern HR management.
+**Theme**: Moss Growth 🌿 - a nature-inspired design for modern HR management.
 
 ---
 
 ## 🚀 Features
 
-### 👤 Employee Management
-- Complete employee directory with search and filters
-- Add, edit, and delete employee records
-- Track employee information: ID, position, hire date, status
-- Role-based access control (ADMIN/MANAGER only)
+### 👤 Employee Management (admins)
+- Employee directory (admins and managers)
+- Add employees; each new account gets a one-time temporary password
+- Edit employee details; deactivate instead of delete, so leave and attendance history is kept
+- Change roles (Employee / Manager / Admin) and activate or deactivate accounts in **Settings → Users**
 
 ### 📅 Leave Management
-- Submit leave requests with automatic balance tracking
-- View leave balance (Vacation, Sick, Personal days)
-- Track leave request history and status
-- Support for multiple leave types (Vacation, Sick, Personal, Unpaid)
-- Approval workflow for managers
+- Request vacation, sick, personal or unpaid leave, with an optional PDF/image attachment
+- Balances count **working days** (Mon–Fri) and reset each calendar year
+- Overlapping requests and requests beyond the remaining balance are refused
+- Managers and admins approve or reject (with a reason); nobody can approve their own request
 
-### ⏰ Attendance Tracking
-- Real-time check-in/check-out functionality
-- Live clock display
-- Attendance history with date sorting
-- Statistics: Present, Absent, Late, Half-day
-- Automatic duration calculation
+### ⏰ Attendance
+- Daily check-in / check-out; check-ins after 09:30 are marked late
+- Month-by-month history with worked hours and monthly stats
+- "Today" and the late cut-off follow the company timezone (**Settings → General**)
 
 ### 🏢 Room Booking
-- View available meeting rooms with capacity details
-- Book rooms with date/time selection
-- Display room amenities (Projector, Whiteboard, etc.)
-- Booking history and status tracking
-- Real-time availability indicators
+- Admins add rooms (capacity, location, amenities)
+- Anyone can book a future time slot; overlapping bookings are refused
 
 ### 📊 Dashboard & Reports
-- Key metrics: Total employees, attendance rate, pending leaves
-- Department overview
-- Real-time analytics and insights
-- Comprehensive reporting system
-
-### 🔐 Authentication & Authorization
-- Secure authentication with NextAuth.js
-- Role-based access control (ADMIN, MANAGER, EMPLOYEE)
-- Protected routes with middleware
-- Session management
+- Headcount, absences, pending leave and today's bookings
+- Reports (admins and managers): attendance rate, 5-day trend, departments and leave outcomes
 
 ---
 
 ## 🛠️ Tech Stack
 
-### Frontend
-- **Framework**: Next.js 16.0.3 (App Router)
-- **Language**: TypeScript
-- **UI Library**: React 19.2.0
-- **Styling**: Tailwind CSS 4
-- **Forms**: React Hook Form + Zod validation
-- **Icons**: Lucide React
-- **HTTP Client**: Axios
-- **Authentication**: NextAuth.js v4
+| | Frontend (`frontend/`, port 3000) | Backend (`backend/`, port 3001) |
+|---|---|---|
+| Framework | Next.js 16 (App Router), React 19 | Next.js 16 (API routes only) |
+| Auth | NextAuth.js v4 (credentials, JWT sessions) | Verifies the NextAuth session cookie |
+| Data | — | PostgreSQL + Prisma 7 |
+| Validation | React Hook Form + Zod | Zod |
+| Styling | Tailwind CSS 4, Lucide icons | — |
+| Other | | bcryptjs, sharp (avatar resizing), Vitest |
 
-### Backend
-- **Framework**: Next.js 14 (API Routes)
-- **Database**: PostgreSQL 18
-- **ORM**: Prisma 7
-- **Authentication**: NextAuth.js v4
-- **Password Hashing**: bcryptjs
-- **File Uploads**: Multer
-- **Email**: Nodemailer
+---
+
+## 🔒 How requests are secured
+
+```
+Browser ──► frontend (3000) ──► backend (3001) ──► PostgreSQL
+            /api/* proxy routes   every route calls withAuth()
+```
+
+- The browser only talks to the **frontend**. Its `/api/*` routes are thin proxies (`frontend/lib/proxy.ts`) that forward the request with the user's **session cookie only**.
+- The **backend** decodes that cookie itself (both apps share `NEXTAUTH_SECRET`) and **reloads the user from the database on every request** (`backend/lib/rbac.ts`). Deactivating someone or changing their role takes effect immediately.
+- The backend never trusts identity headers. Only `/api/auth/login` and `/api/auth/register` are public.
+- Uploaded files live in a private `backend/uploads/` folder and are served only through `/api/files/...` after an access check. Leave attachments are visible only to the requester, managers and admins.
+- Failed sign-ins are rate-limited: 5 per email and 30 per client IP, per 15 minutes.
 
 ---
 
 ## 📋 Prerequisites
 
-Before you begin, ensure you have the following installed:
-- **Node.js** 20.x or higher
-- **npm** or **yarn** or **pnpm**
-- **PostgreSQL** 18.x
-- **Git**
+- **Node.js** 20 or newer
+- **PostgreSQL** 15 or newer
 
 ---
 
-## 🔧 Installation & Setup
+## 🔧 Setup
 
-### 1. Clone the Repository
+### 1. Install dependencies
 
 ```bash
-git clone <repository-url>
-cd MOHR
+cd backend && npm install
+cd ../frontend && npm install
 ```
 
-### 2. Install Dependencies
+### 2. Environment variables
 
-#### Frontend
-```bash
-cd frontend
-npm install
-```
-
-#### Backend
-```bash
-cd backend
-npm install
-```
-
-### 3. Environment Configuration
-
-#### Backend Setup
-Create a `.env.local` file in the `backend` directory:
+`backend/.env.local`:
 
 ```env
-# Database
-DATABASE_URL="postgresql://postgres:password@localhost:5432/MOHR_db"
-
-# NextAuth
-NEXTAUTH_SECRET="your-secret-key-here"
+DATABASE_URL="postgresql://postgres:password@localhost:5432/mohr_db"
+NEXTAUTH_SECRET="<same long random value as the frontend>"
 NEXTAUTH_URL="http://localhost:3001"
-
-# Email (Optional)
-SMTP_HOST="smtp.example.com"
-SMTP_PORT=587
-SMTP_USER="your-email@example.com"
-SMTP_PASS="your-password"
+# Optional: where uploads are stored (default: backend/uploads)
+# UPLOADS_DIR="/var/lib/mohr/uploads"
 ```
 
-#### Frontend Setup
-Create a `.env.local` file in the `frontend` directory:
+`frontend/.env.local`:
 
 ```env
-NEXT_PUBLIC_API_URL="http://localhost:3001"
-NEXTAUTH_SECRET="your-secret-key-here"
+NEXTAUTH_SECRET="<same value as the backend>"
 NEXTAUTH_URL="http://localhost:3000"
+BACKEND_URL="http://localhost:3001"
 ```
 
-### 4. Database Setup
+Generate a secret with `openssl rand -base64 48`. **The two `NEXTAUTH_SECRET` values must match**, and both `NEXTAUTH_URL`s must use the same scheme (both `http` or both `https`). Otherwise the backend can't read the session cookie and every request returns 401.
+
+### 3. Database
 
 ```bash
 cd backend
-
-# Generate Prisma client
-npx prisma generate
-
-# Run migrations
-npx prisma migrate deploy
-
-# Seed database (optional)
-npx prisma db seed
+npx prisma migrate deploy   # create the tables
+npx prisma generate         # generate the Prisma client
 ```
 
-### 5. Run Development Servers
+### 4. Run
 
-#### Backend (Port 3001)
+```bash
+cd backend && npm run dev     # http://localhost:3001
+cd frontend && npm run dev    # http://localhost:3000
+```
+
+### 5. Create the first admin
+
+There are no built-in accounts. Register at <http://localhost:3000/register> (new accounts are always employees), then promote yourself:
+
 ```bash
 cd backend
-npm run dev
+node scripts/make-admin.mjs you@example.com
 ```
 
-#### Frontend (Port 3000)
-```bash
-cd frontend
-npm run dev
-```
-
-### 6. Access the Application
-
-- **Frontend**: [http://localhost:3000](http://localhost:3000)
-- **Backend API**: [http://localhost:3001](http://localhost:3001)
+Sign out and back in. From then on, manage roles in **Settings → Users** and set the company timezone in **Settings → General**.
 
 ---
 
@@ -174,170 +133,67 @@ npm run dev
 
 ```
 MOHR/
-├── frontend/                # Next.js frontend application
-│   ├── app/                # App router pages
-│   │   ├── (auth)/        # Authentication pages
-│   │   ├── api/           # API proxy routes
-│   │   ├── attendance/    # Attendance module
-│   │   ├── dashboard/     # Dashboard & analytics
-│   │   ├── employees/     # Employee management
-│   │   ├── leave/         # Leave management
-│   │   ├── profile/       # User profile
-│   │   ├── reports/       # Reports & analytics
-│   │   ├── rooms/         # Room booking
-│   │   └── settings/      # System settings
-│   ├── components/        # Reusable components
-│   │   ├── ui/           # UI component library
-│   │   ├── auth/         # Authentication components
-│   │   └── dashboard/    # Dashboard components
-│   └── lib/              # Utilities and helpers
+├── frontend/
+│   ├── app/              # Pages (dashboard, attendance, leave, employees, rooms, reports, settings, profile)
+│   │   └── api/          # Proxy routes to the backend (one-liners using lib/proxy.ts)
+│   ├── components/       # UI library (components/ui) and feature components
+│   ├── lib/              # NextAuth config (auth.ts), proxy helper, login rate limiter
+│   └── proxy.ts          # Redirects signed-out visitors to /login
 │
-└── backend/              # Next.js backend API
-    ├── app/api/          # API routes
-    │   ├── auth/        # Authentication endpoints
-    │   ├── employees/   # Employee CRUD
-    │   ├── leave/       # Leave management
-    │   ├── attendance/  # Attendance tracking
-    │   ├── rooms/       # Room booking
-    │   └── reports/     # Analytics endpoints
-    ├── lib/             # Backend utilities
-    └── prisma/          # Database schema & migrations
+└── backend/
+    ├── app/api/          # API routes (see backend/BACKEND_DOCUMENTATION.md)
+    ├── lib/              # rbac (auth), employee, dates (timezone), uploads, validation, pagination, rate-limit
+    ├── prisma/           # Schema and migrations
+    ├── scripts/          # make-admin.mjs, migrate-uploads.mjs
+    ├── tests/            # Vitest unit tests
+    └── uploads/          # Private uploaded files (gitignored)
 ```
 
 ---
 
-## 🎨 UI Component Library
+## 📜 Scripts
 
-The project includes a custom-built UI component library located in `frontend/components/ui/`:
-
-- **Table** - Data tables with sorting, pagination, and custom rendering
-- **Modal** - Customizable modal dialogs
-- **Badge** - Status badges with variants
-- **Pagination** - Smart pagination with page number generation
-- **Button** - Multiple variants with loading states
-- **Dialog** - Confirmation and alert dialogs
-
----
-
-## 🔒 Authentication
-
-MOHR uses NextAuth.js for authentication with the following roles:
-
-- **ADMIN** - Full system access
-- **MANAGER** - Employee management, leave approvals
-- **EMPLOYEE** - Personal data, leave requests, attendance
-
-### Default Users (After Seeding)
-- Admin: `admin@MOHR.com` / `Admin@123`
-- Manager: `manager@MOHR.com` / `Manager@123`
-- Employee: `employee@MOHR.com` / `Employee@123`
+| | Frontend | Backend |
+|---|---|---|
+| `npm run dev` | Dev server on :3000 | Dev server on :3001 |
+| `npm run build` / `start` | Production build / server | Production build / server on :3001 |
+| `npm run lint` | ESLint | — |
+| `npm run typecheck` | — | `tsc --noEmit` |
+| `npm test` | — | Unit tests (Vitest) |
 
 ---
 
-## 📜 Available Scripts
+## 🚢 Deployment notes
 
-### Frontend
-```bash
-npm run dev      # Start development server
-npm run build    # Build for production
-npm run start    # Start production server
-npm run lint     # Run ESLint
-```
-
-### Backend
-```bash
-npm run dev      # Start development server (port 3001)
-npm run build    # Build for production
-npm run start    # Start production server
-```
+- **Expose only the frontend.** Keep the backend on a private network: it enforces auth anyway, but it doesn't need to be public.
+- **Uploads need persistent disk storage.** Point `UPLOADS_DIR` at a volume that survives redeploys. Serverless hosts with ephemeral filesystems (e.g. Vercel functions) will lose uploads.
+- **Run one instance of each app.** Login rate limits are kept in memory per process. To run several instances, move them to a shared store such as Redis.
+- **Set `X-Forwarded-For` at your reverse proxy** so the per-IP sign-in limit sees real client addresses.
+- Use HTTPS for both `NEXTAUTH_URL`s in production.
+- **Upgrading from a version that stored uploads in `backend/public/uploads`?** Run `node scripts/migrate-uploads.mjs` from `backend/` once.
 
 ---
 
-## 🗄️ Database Schema
+## 📚 More documentation
 
-### Core Tables
-- **User** - System users with authentication
-- **Employee** - Employee records linked to users
-- **LeaveBalance** - Annual leave tracking per employee
-- **LeaveRequest** - Leave applications and approvals
-- **Attendance** - Daily check-in/check-out records
-- **Room** - Meeting room inventory
-- **Booking** - Room booking records
-- **Settings** - System configuration
+- [Backend API reference](backend/BACKEND_DOCUMENTATION.md)
 
 ---
 
-## 🚢 Deployment
+## 🐛 Troubleshooting
 
-### Vercel Deployment (Recommended)
+**Every API call returns 401 after signing in.** The two apps' `NEXTAUTH_SECRET` values differ, or one `NEXTAUTH_URL` is `https` and the other `http`.
 
-1. Push your code to GitHub
-2. Import project to Vercel
-3. Configure environment variables
-4. Deploy frontend and backend separately
+**"Too many failed attempts".** Wait 15 minutes, or restart the apps (the limits are in memory).
 
-### Environment Variables for Production
-Ensure all environment variables are set in your deployment platform:
-- Database connection string
-- NextAuth secret and URL
-- SMTP credentials (if using email features)
+**`npm run dev` hangs or reports "Can't resolve 'tailwindcss'".** `frontend/postcss.config.mjs` must keep its `base` setting; Turbopack's PostCSS worker runs from the repository root.
 
----
-
-## 📚 Documentation
-
-For more detailed documentation, see:
-- [Backend Documentation](../backend/BACKEND_DOCUMENTATION.md)
-- [Frontend Setup Guide](./FRONTEND_SETUP.md)
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+**Port already in use.** Stop the other process, or run `npm run dev -- -p <port>` (update `BACKEND_URL` if you move the backend).
 
 ---
 
 ## 📝 License
 
 This project is private and proprietary.
-
----
-
-## 🐛 Known Issues & Troubleshooting
-
-### Common Issues
-
-**Database Connection Error**
-```bash
-# Ensure PostgreSQL is running
-# Check DATABASE_URL in .env.local
-npx prisma db push
-```
-
-**Port Already in Use**
-```bash
-# Change port in package.json or kill the process
-# Frontend: PORT=3002 npm run dev
-# Backend: npm run dev -- -p 3002
-```
-
-**Authentication Issues**
-```bash
-# Clear browser cookies and cache
-# Verify NEXTAUTH_SECRET matches in both frontend and backend
-```
-
----
-
-## 📞 Support
-
-For questions or support, please contact the development team.
-
----
 
 **Built with ❤️ using Next.js and the Moss Growth philosophy 🌿**

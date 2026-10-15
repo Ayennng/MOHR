@@ -138,7 +138,6 @@ export default function Sidebar() {
               <li key={item.panel} className="relative group">
                 <button
                   onClick={() => {
-                    console.log('🔘 Sidebar Button Clicked:', item.panel, item.label);
                     setActivePanel(item.panel);
                   }}
                   style={{

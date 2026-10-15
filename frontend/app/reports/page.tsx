@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Users, Calendar, TrendingUp, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { apiCall } from '@/lib/api-client';
 
 interface ReportData {
   period: string;
@@ -27,7 +26,7 @@ interface ReportData {
     approved: number;
     pending: number;
     rejected: number;
-    awaiting: number;
+    cancelled: number;
   };
 }
 
@@ -43,8 +42,9 @@ export default function ReportsPage() {
   const fetchReportData = async () => {
     try {
       setIsLoading(true);
-      const { data } = await apiCall.get<ReportData>(`/api/reports?period=${selectedPeriod}`);
-      setReportData(data);
+      const response = await fetch(`/api/reports?period=${selectedPeriod}`);
+      if (!response.ok) throw new Error(`Reports request failed (${response.status})`);
+      setReportData(await response.json());
     } catch (error) {
       console.error('Error fetching report data:', error);
     } finally {
@@ -282,7 +282,7 @@ export default function ReportsPage() {
             { label: 'Approved', value: reportData.leaveStats.approved, bg: 'from-green-50', text: 'text-green-600', badge: '✓' },
             { label: 'Pending', value: reportData.leaveStats.pending, bg: 'from-amber-50', text: 'text-amber-600', badge: '⏳' },
             { label: 'Rejected', value: reportData.leaveStats.rejected, bg: 'from-red-50', text: 'text-red-600', badge: '✗' },
-            { label: 'Awaiting', value: reportData.leaveStats.awaiting, bg: 'from-blue-50', text: 'text-blue-600', badge: '📋' },
+            { label: 'Cancelled', value: reportData.leaveStats.cancelled, bg: 'from-blue-50', text: 'text-blue-600', badge: '↩' },
           ].map((stat) => (
             <div key={stat.label} className={`bg-gradient-to-br ${stat.bg} to-transparent rounded-xl p-6 border border-opacity-20 hover:shadow-md transition-all`}>
               <div className="flex items-start justify-between mb-3">

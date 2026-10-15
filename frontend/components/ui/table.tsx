@@ -16,9 +16,9 @@ export interface TableProps<T> {
   data: T[];
   loading?: boolean;
   onRowClick?: (row: T) => void;
-  sortColumn?: keyof T;
+  sortColumn?: keyof T | string; // dotted paths like "user.firstName" are allowed
   sortDirection?: 'asc' | 'desc';
-  onSort?: (column: keyof T) => void;
+  onSort?: (column: keyof T & string) => void;
 }
 
 export function Table<T extends Record<string, any>>({
@@ -52,7 +52,7 @@ export function Table<T extends Record<string, any>>({
               >
                 {column.sortable && onSort ? (
                   <button
-                    onClick={() => onSort(column.key as keyof T)}
+                    onClick={() => onSort(column.key as keyof T & string)}
                     className="flex items-center gap-2 hover:text-moss-700 transition-colors"
                   >
                     {column.label}
@@ -97,9 +97,9 @@ export function Table<T extends Record<string, any>>({
                   onRowClick ? 'cursor-pointer hover:bg-moss-50' : ''
                 } transition-colors`}
               >
-                {columns.map((column) => (
+                {columns.map((column, colIdx) => (
                   <td
-                    key={String(column.key)}
+                    key={`${idx}-${colIdx}`}
                     className="px-6 py-4 text-sm text-moss-700"
                   >
                     {column.render

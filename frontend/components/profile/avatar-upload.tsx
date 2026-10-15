@@ -3,7 +3,6 @@
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, X, Camera } from 'lucide-react';
-import { profileApi } from '@/lib/api-client';
 
 interface AvatarUploadProps {
   currentAvatar?: string | null;
@@ -20,8 +19,20 @@ export default function AvatarUpload({ currentAvatar, onUploadSuccess, onRemove 
   const uploadWithRetry = useCallback(
     async (file: File, attempt = 1): Promise<any> => {
       try {
-        const response = await profileApi.uploadAvatar(file);
-        return response.data;
+        const formData = new FormData();
+        formData.append('avatar', file);
+
+        const response = await fetch('/api/users/avatar', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw { response: { status: response.status, data: error } };
+        }
+
+        return await response.json();
       } catch (error: any) {
         // Don't retry on 4xx errors (validation, auth, etc.)
         if (error.response?.status >= 400 && error.response?.status < 500) {
@@ -98,10 +109,13 @@ export default function AvatarUpload({ currentAvatar, onUploadSuccess, onRemove 
       setUploading(true);
       setError(null);
 
-      await profileApi.deleteAvatar();
+      const response = await fetch('/api/users/avatar', { method: 'DELETE' });
+      if (!response.ok) {
+        throw new Error('Failed to remove avatar');
+      }
       onRemove();
     } catch (err: any) {
-      const errorMessage = err.response?.data?.error || (err instanceof Error ? err.message : 'Remove failed');
+      const errorMessage = err instanceof Error ? err.message : 'Remove failed';
       setError(errorMessage);
     } finally {
       setUploading(false);

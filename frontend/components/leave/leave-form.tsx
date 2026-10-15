@@ -14,7 +14,10 @@ const leaveSchema = z.object({
     }),
   startDate: z.string().min(1, 'Start date is required'),
   endDate: z.string().min(1, 'End date is required'),
-  reason: z.string().min(10, 'Reason must be at least 10 characters'),
+  reason: z.string().trim().min(10, 'Reason must be at least 10 characters'),
+}).refine((d) => !d.startDate || !d.endDate || d.endDate >= d.startDate, {
+  message: 'End date cannot be before start date',
+  path: ['endDate'],
 });
 
 type LeaveFormData = z.infer<typeof leaveSchema>;
@@ -62,8 +65,6 @@ export function LeaveForm({
   };
 
   const handleFormSubmit = async (data: LeaveFormData) => {
-    console.log('Form submitted with data:', data);
-    console.log('Form errors:', errors);
     try {
       setError(null);
       // Add file to the data if selected
@@ -77,9 +78,6 @@ export function LeaveForm({
       setError(err instanceof Error ? err.message : 'Failed to submit leave request');
     }
   };
-
-  console.log('Current form errors:', errors);
-  console.log('Has errors:', Object.keys(errors).length > 0);
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
@@ -177,7 +175,7 @@ export function LeaveForm({
           type="file"
           onChange={handleFileChange}
           className="w-full px-4 py-3 border-2 border-moss-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-moss-500 focus:border-moss-500 bg-white text-moss-900 font-medium file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-moss-100 file:text-moss-700 file:font-semibold hover:file:bg-moss-200"
-          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+          accept=".pdf,.jpg,.jpeg,.png,.webp"
         />
         {selectedFile && (
           <p className="text-green-600 text-sm mt-2 flex items-center gap-2">
@@ -188,7 +186,7 @@ export function LeaveForm({
           </p>
         )}
         <p className="text-moss-600 text-xs mt-1">
-          Accepted formats: PDF, DOC, DOCX, JPG, PNG (Max 5MB)
+          Accepted formats: PDF, JPG, PNG, WebP (Max 5MB)
         </p>
       </div>
 

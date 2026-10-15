@@ -1,4 +1,8 @@
-@import "tailwindcss";
+/* Scan only the app's own source for class names. Automatic detection also read
+   Next's build cache in .next/ and generated broken CSS from stale entries. */
+@import "tailwindcss" source(none);
+@source "../app";
+@source "../components";
 
 :root {
   /* Moss Growth Theme - Light Mode */

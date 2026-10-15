@@ -4,20 +4,20 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { EmployeeForm } from '@/components/employees/employee-form';
-import { apiCall } from '@/lib/api-client';
+import { EmployeeForm, type EmployeeFormData } from '@/components/employees/employee-form';
 
-interface Employee {
+interface EmployeeResponse {
   id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
   position: string;
-  department: string;
-  salary: number;
-  joinDate: string;
-  employmentType: 'FULL_TIME' | 'PART_TIME' | 'CONTRACT';
+  hireDate: string;
+  status: EmployeeFormData['status'];
+  user: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    department: string | null;
+    phone: string | null;
+  };
 }
 
 export default function EditEmployeePage() {
@@ -25,55 +25,55 @@ export default function EditEmployeePage() {
   const params = useParams();
   const id = params?.id as string;
 
-  const [employee, setEmployee] = useState<Employee | null>(null);
+  const [employee, setEmployee] = useState<EmployeeFormData | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
+    if (!id) return;
+
     const fetchEmployee = async () => {
       try {
         setIsLoading(true);
-        // TODO: Replace with actual API call when backend is ready
-        // const { data } = await apiCall.get<Employee>(`/api/employees/${id}`);
-        // setEmployee(data);
-
-        // Mock data for now
+        const response = await fetch(`/api/employees/${encodeURIComponent(id)}`);
+        if (!response.ok) {
+          throw new Error(response.status === 404 ? 'Employee not found' : 'Failed to load employee');
+        }
+        const data: EmployeeResponse = await response.json();
         setEmployee({
-          id,
-          firstName: 'John',
-          lastName: 'Doe',
-          email: 'john@example.com',
-          phone: '+1 (555) 000-0001',
-          position: 'Senior Engineer',
-          department: 'Engineering',
-          salary: 120000,
-          joinDate: '2022-01-15',
-          employmentType: 'FULL_TIME',
+          firstName: data.user.firstName,
+          lastName: data.user.lastName,
+          email: data.user.email,
+          phone: data.user.phone ?? '',
+          department: data.user.department ?? '',
+          position: data.position,
+          hireDate: data.hireDate.slice(0, 10),
+          status: data.status,
         });
       } catch (error) {
-        console.error('Failed to fetch employee:', error);
+        setLoadError(error instanceof Error ? error.message : 'Failed to load employee');
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (id) {
-      fetchEmployee();
-    }
+    fetchEmployee();
   }, [id]);
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: EmployeeFormData) => {
     try {
       setIsSaving(true);
-      // TODO: Replace with actual API call when backend is ready
-      // await apiCall.put(`/api/employees/${id}`, data);
-
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
+      const response = await fetch(`/api/employees/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to update employee');
+      }
       router.push('/employees');
-    } catch (error) {
-      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -90,7 +90,7 @@ export default function EditEmployeePage() {
   if (!employee) {
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-        Employee not found
+        {loadError ?? 'Employee not found'}
       </div>
     );
   }
@@ -120,6 +120,7 @@ export default function EditEmployeePage() {
           isLoading={isSaving}
           initialData={employee}
           submitText="Update Employee"
+          showStatus
         />
       </div>
     </div>

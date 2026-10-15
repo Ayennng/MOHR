@@ -1,16 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Plus, Calendar, Heart, User, Clock, Check, X, Eye } from 'lucide-react';
 import Link from 'next/link';
-import { Table, Column, Button, Badge, StatusBadge, Modal } from '@/components/ui';
-import { apiCall } from '@/lib/api-client';
+import { Table, Column, Button, Badge, StatusBadge, Modal, Pagination } from '@/components/ui';
+
+const PAGE_SIZE = 25;
 
 interface LeaveRequest {
   id: string;
   employeeId: string;
   employeeName: string;
+  isOwn: boolean;
+  workingDays: number;
   leaveType: 'VACATION' | 'SICK' | 'PERSONAL' | 'UNPAID';
   startDate: string;
   endDate: string;
@@ -36,6 +39,8 @@ export default function LeavePage() {
   const [loading, setLoading] = useState(true);
   const [sortColumn, setSortColumn] = useState<keyof LeaveRequest>('startDate');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [page, setPage] = useState(1);
+  const [totalLeaves, setTotalLeaves] = useState(0);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedLeaveId, setSelectedLeaveId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -43,40 +48,37 @@ export default function LeavePage() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
 
+  // The server pages and sorts the list, so sorting covers every request, not just this page
+  const loadLeaves = useCallback(async () => {
+    const params = new URLSearchParams({
+      page: String(page),
+      pageSize: String(PAGE_SIZE),
+      sort: sortColumn,
+      dir: sortDirection,
+    });
+    const response = await fetch(`/api/leave?${params}`);
+    if (!response.ok) throw new Error(`Leave request list failed (${response.status})`);
+    const data: { items: LeaveRequest[]; total: number } = await response.json();
+    setLeaves(data.items);
+    setTotalLeaves(data.total);
+  }, [page, sortColumn, sortDirection]);
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [leavesResponse, balanceResponse] = await Promise.all([
-          apiCall.get<LeaveRequest[]>('/api/leave'),
-          apiCall.get<LeaveBalance>('/api/leave/balance'),
-        ]);
-        setLeaves(leavesResponse.data);
-        setLeaveBalance(balanceResponse.data);
-      } catch (error) {
-        console.error('Failed to fetch leave data:', error);
+    setLoading(true);
+    loadLeaves()
+      .catch((error) => {
+        console.error('Failed to fetch leave requests:', error);
         setLeaves([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+      })
+      .finally(() => setLoading(false));
+  }, [loadLeaves]);
 
-    fetchData();
+  useEffect(() => {
+    fetch('/api/leave/balance')
+      // An error body has no balance fields; rendering it would crash the page
+      .then(async (response) => setLeaveBalance(response.ok ? await response.json() : null))
+      .catch((error) => console.error('Failed to fetch leave balance:', error));
   }, []);
-
-  const sortedLeaves = [...leaves].sort((a, b) => {
-    const aValue = a[sortColumn];
-    const bValue = b[sortColumn];
-
-    if (typeof aValue === 'string') {
-      return sortDirection === 'asc'
-        ? aValue.localeCompare(String(bValue))
-        : String(bValue).localeCompare(aValue);
-    }
-    return sortDirection === 'asc'
-      ? Number(aValue) - Number(bValue)
-      : Number(bValue) - Number(aValue);
-  });
 
   const handleSort = (column: keyof LeaveRequest) => {
     if (sortColumn === column) {
@@ -85,23 +87,30 @@ export default function LeavePage() {
       setSortColumn(column);
       setSortDirection('asc');
     }
+    setPage(1);
   };
 
   const handleApprove = async (leaveId: string) => {
     try {
       setActionLoading(true);
-      await apiCall.put(`/api/leave/${leaveId}/approve`, {
-        status: 'APPROVED',
+      const response = await fetch(`/api/leave/${leaveId}/approve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'APPROVED' }),
       });
-      
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || error.message || 'Failed to approve leave');
+      }
+
       // Refresh the leave list
-      const { data } = await apiCall.get<LeaveRequest[]>('/api/leave');
-      setLeaves(data);
-      
+      await loadLeaves();
+
       alert('Leave request approved successfully!');
     } catch (error: any) {
       console.error('Failed to approve leave:', error);
-      const errorMessage = error?.response?.data?.error || error?.response?.data?.message || 'Failed to approve leave request. Please try again.';
+      const errorMessage = error?.message || 'Failed to approve leave request. Please try again.';
       alert(errorMessage);
     } finally {
       setActionLoading(false);
@@ -123,23 +132,31 @@ export default function LeavePage() {
 
     try {
       setActionLoading(true);
-      await apiCall.put(`/api/leave/${selectedLeaveId}/approve`, {
-        status: 'REJECTED',
-        rejectionReason: rejectionReason.trim(),
+      const response = await fetch(`/api/leave/${selectedLeaveId}/approve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'REJECTED',
+          rejectionReason: rejectionReason.trim(),
+        }),
       });
-      
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || error.message || 'Failed to reject leave');
+      }
+
       // Refresh the leave list
-      const { data } = await apiCall.get<LeaveRequest[]>('/api/leave');
-      setLeaves(data);
-      
+      await loadLeaves();
+
       setShowRejectModal(false);
       setSelectedLeaveId(null);
       setRejectionReason('');
-      
+
       alert('Leave request rejected.');
     } catch (error: any) {
       console.error('Failed to reject leave:', error);
-      const errorMessage = error?.response?.data?.error || error?.response?.data?.message || 'Failed to reject leave request. Please try again.';
+      const errorMessage = error?.message || 'Failed to reject leave request. Please try again.';
       alert(errorMessage);
     } finally {
       setActionLoading(false);
@@ -241,7 +258,10 @@ export default function LeavePage() {
         if (row.status !== 'PENDING') {
           return <span className="text-xs text-gray-400">No actions</span>;
         }
-        
+        if (row.isOwn) {
+          return <span className="text-xs text-gray-400">Awaiting another approver</span>;
+        }
+
         return (
           <div className="flex items-center gap-2">
             <button
@@ -405,12 +425,23 @@ export default function LeavePage() {
         </div>
         <Table<LeaveRequest>
           columns={columns}
-          data={sortedLeaves}
+          data={leaves}
           loading={loading}
           sortColumn={sortColumn}
           sortDirection={sortDirection}
           onSort={handleSort}
         />
+        {totalLeaves > PAGE_SIZE && (
+          <div className="mt-6">
+            <Pagination
+              currentPage={page}
+              totalPages={Math.ceil(totalLeaves / PAGE_SIZE)}
+              onPageChange={setPage}
+              totalItems={totalLeaves}
+              itemsPerPage={PAGE_SIZE}
+            />
+          </div>
+        )}
       </div>
 
       {/* Rejection Modal */}
@@ -519,7 +550,7 @@ export default function LeavePage() {
               <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
                 <h3 className="text-sm font-bold text-purple-900 mb-3 uppercase tracking-wider">Attachment</h3>
                 <a
-                  href={`http://localhost:3001${selectedLeave.attachment}`}
+                  href={selectedLeave.attachment}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-semibold"

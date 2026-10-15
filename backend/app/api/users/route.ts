@@ -1,35 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { z } from 'zod';
+import { UserRole } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { isLastActiveAdmin, withAuth } from '@/lib/rbac';
+import { parseJson } from '@/lib/validation';
 
-// GET /api/users - List all users
+// Accounts are created through POST /api/employees (which also creates the employee
+// record and a temporary password) and are deactivated rather than deleted, so this
+// route only lists users and changes their role / active flag.
+
+const userSelect = {
+  id: true,
+  email: true,
+  firstName: true,
+  lastName: true,
+  role: true,
+  department: true,
+  phone: true,
+  avatar: true,
+  active: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+// GET /api/users - List all users (ADMIN)
 export async function GET(req: NextRequest) {
+  const authResult = await withAuth(req, ['ADMIN']);
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-
-    if (!token) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Only admins can list all users
-    if (token.role !== 'ADMIN') {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-    }
-
     const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        department: true,
-        phone: true,
-        avatar: true,
-        active: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: userSelect,
       orderBy: {
         createdAt: 'desc',
       },
@@ -39,167 +40,76 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Error fetching users:', error);
     return NextResponse.json(
-      { message: 'Failed to fetch users' },
+      { error: 'Failed to fetch users' },
       { status: 500 }
     );
   }
 }
 
-// POST /api/users - Create new user
-export async function POST(req: NextRequest) {
-  try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+const updateUserSchema = z
+  .object({
+    id: z.string().min(1, 'User ID is required'),
+    role: z.enum(UserRole, 'Role must be ADMIN, MANAGER or EMPLOYEE').optional(),
+    active: z.boolean('Active must be true or false').optional(),
+  })
+  .refine((u) => u.role !== undefined || u.active !== undefined, 'Nothing to update');
 
-    if (!token) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Only admins can create users
-    if (token.role !== 'ADMIN') {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-    }
-
-    const body = await req.json();
-    const { email, firstName, lastName, role, department, phone, password } = body;
-
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      return NextResponse.json(
-        { message: 'User with this email already exists' },
-        { status: 400 }
-      );
-    }
-
-    // Hash password before storing
-    const bcrypt = require('bcryptjs');
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.create({
-      data: {
-        email,
-        firstName,
-        lastName,
-        role,
-        department,
-        phone,
-        password: hashedPassword,
-        active: true,
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        department: true,
-        phone: true,
-        avatar: true,
-        active: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    return NextResponse.json(user, { status: 201 });
-  } catch (error) {
-    console.error('Error creating user:', error);
-    return NextResponse.json(
-      { message: 'Failed to create user' },
-      { status: 500 }
-    );
+/** An expected failure with a message for the client. */
+class UpdateError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
   }
 }
 
-// PUT /api/users - Update user
+// PUT /api/users - change a user's role and/or active flag (ADMIN)
 export async function PUT(req: NextRequest) {
+  const authResult = await withAuth(req, ['ADMIN']);
+  if (authResult instanceof NextResponse) return authResult;
+
+  const data = await parseJson(req, updateUserSchema);
+  if (data instanceof NextResponse) return data;
+
+  if (data.id === authResult.user.id) {
+    return NextResponse.json(
+      { error: 'You cannot change your own role or deactivate yourself' },
+      { status: 400 }
+    );
+  }
+
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const user = await prisma.$transaction(async (tx) => {
+      const target = await tx.user.findUnique({ where: { id: data.id } });
+      if (!target) throw new UpdateError(404, 'User not found');
 
-    if (!token) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
+      const removesAdmin = (data.role !== undefined && data.role !== 'ADMIN') || data.active === false;
+      if (removesAdmin && (await isLastActiveAdmin(tx, data.id))) {
+        throw new UpdateError(400, 'At least one active admin is required');
+      }
 
-    // Only admins can update users
-    if (token.role !== 'ADMIN') {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-    }
+      if (data.active !== undefined) {
+        // Keep the employee record in step: inactive users have left (status INACTIVE).
+        // updateMany, because not every user has an employee record yet.
+        await tx.employee.updateMany({
+          where: { userId: data.id },
+          data: { status: data.active ? 'ACTIVE' : 'INACTIVE' },
+        });
+      }
 
-    const body = await req.json();
-    const { id, email, firstName, lastName, role, department, phone, active } = body;
-
-    const user = await prisma.user.update({
-      where: { id },
-      data: {
-        email,
-        firstName,
-        lastName,
-        role,
-        department,
-        phone,
-        active,
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        department: true,
-        phone: true,
-        avatar: true,
-        active: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      return tx.user.update({
+        where: { id: data.id },
+        data: { role: data.role, active: data.active },
+        select: userSelect,
+      });
     });
 
     return NextResponse.json(user);
   } catch (error) {
+    if (error instanceof UpdateError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('Error updating user:', error);
     return NextResponse.json(
-      { message: 'Failed to update user' },
-      { status: 500 }
-    );
-  }
-}
-
-// DELETE /api/users - Delete user
-export async function DELETE(req: NextRequest) {
-  try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-
-    if (!token) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Only admins can delete users
-    if (token.role !== 'ADMIN') {
-      return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-    }
-
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json(
-        { message: 'User ID is required' },
-        { status: 400 }
-      );
-    }
-
-    await prisma.user.delete({
-      where: { id },
-    });
-
-    return NextResponse.json({ message: 'User deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    return NextResponse.json(
-      { message: 'Failed to delete user' },
+      { error: 'Failed to update user' },
       { status: 500 }
     );
   }

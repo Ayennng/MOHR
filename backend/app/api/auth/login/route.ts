@@ -1,49 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { verifyPassword } from '@/lib/auth';
+import { hashPassword, verifyPassword } from '@/lib/auth';
+import { parseJson } from '@/lib/validation';
+import { createRateLimiter, tooManyAttemptsMessage } from '@/lib/rate-limit';
 
+// 5 failed attempts per email per 15 minutes; a successful login clears the count
+const failedLogins = createRateLimiter({ limit: 5, windowMs: 15 * 60 * 1000 });
+
+// Compared against when the email is unknown, so both cases take a bcrypt's time
+// and response timing doesn't reveal which emails have accounts
+let dummyHash: Promise<string> | undefined;
+const getDummyHash = () => (dummyHash ??= hashPassword('not-a-real-password'));
+
+const loginSchema = z.object({
+  email: z.string().trim().min(1).max(254),
+  password: z.string().min(1).max(200),
+});
+
+// Every failure gets the same answer so the endpoint can't be used to discover
+// which emails exist or which accounts are deactivated.
+const invalidCredentials = () =>
+  NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+
+// POST /api/auth/login - called server-side by the frontend's NextAuth authorize()
 export async function POST(request: NextRequest) {
+  const data = await parseJson(request, loginSchema);
+  if (data instanceof NextResponse) return data;
+
+  const limitKey = data.email.toLowerCase();
+  const retryAfter = failedLogins.retryAfter(limitKey);
+  if (retryAfter > 0) {
+    return NextResponse.json(
+      { error: tooManyAttemptsMessage(retryAfter) },
+      { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+    );
+  }
+
   try {
-    const body = await request.json();
-    const { email, password } = body;
-
-    // Validation
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
-    // Find user by email
-    const user = await prisma.user.findUnique({
-      where: { email },
+    // Case-insensitive: older accounts may have been stored with mixed-case emails
+    const user = await prisma.user.findFirst({
+      where: { email: { equals: data.email, mode: 'insensitive' } },
     });
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
+    // Check the password before the active flag, so a deactivated account is
+    // indistinguishable from a wrong password
+    const isPasswordValid = await verifyPassword(data.password, user?.password ?? (await getDummyHash()));
+    if (!user || !isPasswordValid || !user.active) {
+      failedLogins.hit(limitKey);
+      return invalidCredentials();
     }
 
-    // Check if user is active
-    if (!user.active) {
-      return NextResponse.json(
-        { error: 'Account is inactive' },
-        { status: 403 }
-      );
-    }
-
-    // Verify password
-    const isPasswordValid = await verifyPassword(password, user.password);
-
-    if (!isPasswordValid) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
-    }
+    failedLogins.reset(limitKey);
 
     // Return user data (without password)
     return NextResponse.json({

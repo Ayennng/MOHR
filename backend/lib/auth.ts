@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { randomBytes } from 'crypto';
 
 export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
@@ -8,6 +9,7 @@ export async function verifyPassword(password: string, hash: string) {
   return bcrypt.compare(password, hash);
 }
 
-export function generateEmployeeId(count: number) {
-  return `EMP${String(count + 1).padStart(4, '0')}`;
+/** Random 16-character password for admin-created accounts. */
+export function generateTemporaryPassword() {
+  return randomBytes(12).toString('base64url');
 }

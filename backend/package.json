@@ -6,36 +6,33 @@
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
-    "lint": "next lint"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@next-auth/prisma-adapter": "^1.0.7",
     "@prisma/adapter-pg": "^7.0.1",
     "@prisma/client": "^7.0.1",
-    "@types/multer": "^2.0.0",
     "bcryptjs": "^3.0.3",
-    "multer": "^2.0.2",
-    "next": "^14.0.0",
-    "next-auth": "^4.24.13",
-    "nodemailer": "^7.0.10",
+    "next": "^16.4.1",
+    "next-auth": "^4.24.15",
     "pg": "^8.16.3",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-dropzone": "^14.3.8",
-    "sharp": "^0.34.5"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sharp": "^0.35.5",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.0.0",
-    "@types/nodemailer": "^7.0.4",
     "@types/pg": "^8.15.6",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "dotenv": "^17.2.3",
     "dotenv-cli": "^11.0.0",
     "prisma": "^7.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.0"
+    "typescript": "^5.3.0",
+    "vitest": "^3.2.7"
   },
   "prisma": {
     "schema": "./prisma/schema.prisma"

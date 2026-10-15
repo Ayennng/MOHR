@@ -1,76 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { withAuth } from '@/lib/rbac';
+import { ensureEmployee, getLeaveBalance } from '@/lib/employee';
 
 export async function GET(req: NextRequest) {
-  const userId = req.headers.get('X-User-Id');
-  const userRole = req.headers.get('X-User-Role');
-
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const authResult = await withAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
 
   try {
-    // Get employee record
-    let employee = await prisma.employee.findFirst({
-      where: { userId },
-      select: { id: true },
-    });
-
-    // If employee record doesn't exist, create it
-    if (!employee) {
-      const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { firstName: true, lastName: true, department: true },
-      });
-
-      if (!user) {
-        return NextResponse.json(
-          { error: 'User not found' },
-          { status: 404 }
-        );
-      }
-
-      // Generate employee ID
-      const employeeCount = await prisma.employee.count();
-      const employeeId = `EMP${String(employeeCount + 1).padStart(4, '0')}`;
-
-      // Create employee record
-      employee = await prisma.employee.create({
-        data: {
-          employeeId,
-          userId,
-          position: user.department || 'Employee',
-          hireDate: new Date(),
-          status: 'ACTIVE',
-        },
-        select: { id: true },
-      });
-    }
-
-    // Get or create leave balance for current year
-    const currentYear = new Date().getFullYear();
-    let leaveBalance = await prisma.leaveBalance.findFirst({
-      where: {
-        employeeId: employee.id,
-        year: currentYear,
-      },
-    });
-
-    // Create default balance if it doesn't exist
-    if (!leaveBalance) {
-      leaveBalance = await prisma.leaveBalance.create({
-        data: {
-          employeeId: employee.id,
-          year: currentYear,
-          vacationDays: 20,
-          sickDays: 10,
-          personalDays: 5,
-          usedVacation: 0,
-          usedSick: 0,
-          usedPersonal: 0,
-        },
-      });
-    }
+    const employee = await ensureEmployee(authResult.user);
+    const leaveBalance = await getLeaveBalance(employee.id);
 
     // Count pending leave requests
     const pendingRequests = await prisma.leaveRequest.count({

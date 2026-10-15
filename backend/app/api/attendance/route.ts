@@ -1,90 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { Attendance } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { withAuth } from '@/lib/rbac';
+import { fromDbDate, getCompanyTimezone, toDbDate, zonedDateString } from '@/lib/dates';
 
+function serialize(record: Attendance) {
+  return {
+    ...record,
+    date: fromDbDate(record.date),
+    checkInTime: record.checkInTime?.toISOString() ?? null,
+    checkOutTime: record.checkOutTime?.toISOString() ?? null,
+    // Worked minutes, once checked out
+    duration:
+      record.checkInTime && record.checkOutTime
+        ? Math.round((record.checkOutTime.getTime() - record.checkInTime.getTime()) / 60000)
+        : null,
+  };
+}
+
+// GET /api/attendance?month=MM&year=YYYY - the current user's attendance for one month
+// (default: the current month in company time), so the list stays small however long
+// someone has worked here. Returns { today, month, todayRecord, records }: `today` is the
+// company-timezone date and `todayRecord` is always included, whichever month is shown.
 export async function GET(req: NextRequest) {
+  const authResult = await withAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+  const userId = authResult.user.id;
+
   try {
-    // Check authentication via headers
-    const userId = req.headers.get('X-User-Id');
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const today = zonedDateString(new Date(), await getCompanyTimezone());
+    const [currentYear, currentMonth] = today.split('-').map(Number);
 
     const { searchParams } = new URL(req.url);
-    const month = searchParams.get('month');
-    const year = searchParams.get('year');
+    const month = searchParams.has('month') ? Number(searchParams.get('month')) : currentMonth;
+    const year = searchParams.has('year') ? Number(searchParams.get('year')) : currentYear;
 
-    let dateFilter: any = {};
-
-    if (month && year) {
-      const startDate = new Date(`${year}-${month}-01`);
-      const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
-      dateFilter = {
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
-      };
+    if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year) || year < 1970 || year > 9999) {
+      return NextResponse.json({ error: 'Invalid month or year' }, { status: 400 });
     }
 
-    // Get current user's employee record
-    const employee = await prisma.employee.findFirst({
+    const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+    const employee = await prisma.employee.findUnique({
       where: { userId },
       select: { id: true },
     });
 
-    console.log('👤 User ID:', userId);
-    console.log('👷 Employee found:', employee);
-
     if (!employee) {
-      // Return empty array if no employee record yet
-      console.log('❌ No employee record found');
-      return NextResponse.json([]);
+      // No employee record yet means no attendance
+      return NextResponse.json({ today, month: monthKey, todayRecord: null, records: [] });
     }
 
-    // Only fetch attendance for the current user
-    const attendance = await prisma.attendance.findMany({
-      where: {
-        employeeId: employee.id,
-        ...dateFilter,
-      },
-      include: {
-        employee: {
-          include: {
-            user: {
-              select: { firstName: true, lastName: true },
-            },
+    const [records, todayRecord] = await Promise.all([
+      prisma.attendance.findMany({
+        where: {
+          employeeId: employee.id,
+          date: {
+            gte: toDbDate(`${monthKey}-01`),
+            lte: toDbDate(`${monthKey}-${String(lastDay).padStart(2, '0')}`),
           },
         },
-      },
-      orderBy: {
-        date: 'desc',
-      },
+        orderBy: { date: 'desc' },
+      }),
+      prisma.attendance.findUnique({
+        where: { employeeId_date: { employeeId: employee.id, date: toDbDate(today) } },
+      }),
+    ]);
+
+    return NextResponse.json({
+      today,
+      month: monthKey,
+      todayRecord: todayRecord ? serialize(todayRecord) : null,
+      records: records.map(serialize),
     });
-
-    console.log('📊 Found attendance records:', attendance.length);
-    if (attendance.length > 0) {
-      console.log('📊 First record:', {
-        date: attendance[0].date,
-        checkInTime: attendance[0].checkInTime,
-        checkOutTime: attendance[0].checkOutTime,
-      });
-    }
-
-    // Format the response to ensure proper serialization
-    const formattedAttendance = attendance.map((record) => ({
-      ...record,
-      date: record.date.toISOString(),
-      checkInTime: record.checkInTime ? record.checkInTime.toISOString() : null,
-      checkOutTime: record.checkOutTime ? record.checkOutTime.toISOString() : null,
-      employeeName: `${record.employee.user.firstName} ${record.employee.user.lastName}`,
-    }));
-
-    console.log('📊 Formatted attendance sample:', formattedAttendance[0]);
-    return NextResponse.json(formattedAttendance);
   } catch (error) {
     console.error(error);
     return NextResponse.json(

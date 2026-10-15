@@ -10,7 +10,6 @@ import {
   TrendingUp,
   ArrowRight,
 } from 'lucide-react';
-import { apiCall } from '@/lib/api-client';
 import { useDashboard } from './DashboardContext';
 
 // Import all page content as components
@@ -68,25 +67,17 @@ function DashboardHome() {
     const fetchStats = async () => {
       try {
         setIsLoading(true);
-        
-        // Fetch dashboard stats from backend
-        const { data } = await apiCall.get<any>('/api/dashboard/stats');
-        
-        // Fetch bookings count (may not exist yet)
-        let roomsBookedToday = 0;
-        try {
-          const { data: bookings } = await apiCall.get<any[]>('/api/bookings');
-          const today = new Date().toISOString().split('T')[0];
-          roomsBookedToday = bookings.filter((b: any) => b.date === today).length;
-        } catch (bookingsError) {
-          console.log('Bookings endpoint not available yet');
-        }
-        
+
+        // Fetch dashboard stats from frontend API route
+        const statsResponse = await fetch('/api/dashboard/stats');
+        if (!statsResponse.ok) throw new Error(`Dashboard stats failed (${statsResponse.status})`);
+        const data = await statsResponse.json();
+
         setStats({
           totalEmployees: data.totalEmployees || 0,
           pendingLeaveRequests: data.pendingLeaves || 0,
           absentToday: data.absentToday || 0,
-          roomsBooked: roomsBookedToday,
+          roomsBooked: data.myBookingsToday || 0,
         });
       } catch (err) {
         setError('Failed to load dashboard data');
@@ -283,14 +274,7 @@ function DashboardHome() {
 export default function DashboardPage() {
   const { activePanel } = useDashboard();
 
-  // Add debugging
-  useEffect(() => {
-    console.log('🎯 Active Panel Changed:', activePanel);
-  }, [activePanel]);
-
   const renderPanel = () => {
-    console.log('🔄 Rendering Panel:', activePanel);
-    
     switch (activePanel) {
       case 'home':
         return <DashboardHome />;
@@ -299,7 +283,6 @@ export default function DashboardPage() {
       case 'leave':
         return <LeavePage />;
       case 'employees':
-        console.log('✅ Rendering Employees Page');
         return <EmployeesPage />;
       case 'rooms':
         return <RoomsPage />;

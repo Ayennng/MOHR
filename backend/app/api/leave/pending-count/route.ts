@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { withAuth } from '@/lib/rbac';
 
 export async function GET(req: NextRequest) {
-  try {
-    const userId = req.headers.get('X-User-Id');
-    const userRole = req.headers.get('X-User-Role');
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+  const authResult = await withAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+  const { id: userId, role: userRole } = authResult.user;
 
+  try {
     let count = 0;
 
     if (userRole === 'ADMIN' || userRole === 'MANAGER') {

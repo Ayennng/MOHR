@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { User, Mail, Phone, Building, Shield, Save, ArrowLeft } from 'lucide-react';
 import AvatarUpload from '@/components/profile/avatar-upload';
+import ChangePasswordForm from '@/components/profile/change-password-form';
 import { Button } from '@/components/ui/button';
 
 interface UserProfile {
@@ -375,6 +376,8 @@ export default function ProfilePage() {
                 </Button>
               </div>
             </form>
+
+            <ChangePasswordForm />
           </div>
         </div>
       </div>

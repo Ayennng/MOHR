@@ -1,44 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { withAuth } from '@/lib/rbac';
+import { getCompanyTimezone, toDbDate, zonedDateString } from '@/lib/dates';
 
 export async function GET(req: NextRequest) {
+  const authResult = await withAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+  const { user } = authResult;
+
   try {
-    const userId = req.headers.get('X-User-Id');
-    
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const today = toDbDate(zonedDateString(new Date(), await getCompanyTimezone()));
+    const isApprover = user.role === 'ADMIN' || user.role === 'MANAGER';
 
-    const totalEmployees = await prisma.employee.count({
-      where: { status: 'ACTIVE' },
-    });
-
-    const pendingLeaves = await prisma.leaveRequest.count({
-      where: { status: 'PENDING' },
-    });
-
-    const presentToday = await prisma.attendance.count({
-      where: {
-        date: new Date(new Date().toISOString().split('T')[0]),
-        status: { in: ['PRESENT', 'LATE'] },
-      },
-    });
-
-    const absentToday = await prisma.attendance.count({
-      where: {
-        date: new Date(new Date().toISOString().split('T')[0]),
-        status: 'ABSENT',
-      },
-    });
+    const [totalEmployees, presentToday, onLeaveToday, pendingLeaves, myBookingsToday] = await Promise.all([
+      prisma.employee.count({ where: { status: 'ACTIVE' } }),
+      prisma.attendance.count({
+        where: {
+          date: today,
+          status: { in: ['PRESENT', 'LATE', 'HALF_DAY'] },
+          employee: { status: 'ACTIVE' },
+        },
+      }),
+      prisma.employee.count({
+        where: {
+          status: 'ACTIVE',
+          attendances: { none: { date: today } },
+          leaveRequests: {
+            some: { status: 'APPROVED', startDate: { lte: today }, endDate: { gte: today } },
+          },
+        },
+      }),
+      // Approvers see the whole queue; employees see their own pending requests
+      prisma.leaveRequest.count({
+        where: isApprover
+          ? { status: 'PENDING' }
+          : { status: 'PENDING', employee: { userId: user.id } },
+      }),
+      prisma.roomBooking.count({
+        where: {
+          bookedDate: today,
+          status: { not: 'CANCELLED' },
+          employee: { userId: user.id },
+        },
+      }),
+    ]);
 
     return NextResponse.json({
       totalEmployees,
       pendingLeaves,
       presentToday,
-      absentToday,
+      onLeaveToday,
+      myBookingsToday,
+      // Active employees who have neither checked in nor are on approved leave today
+      absentToday: Math.max(totalEmployees - presentToday - onLeaveToday, 0),
     });
   } catch (error) {
     console.error(error);

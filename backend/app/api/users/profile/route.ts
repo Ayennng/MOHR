@@ -1,22 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/nextauth';
 import { prisma } from '@/lib/prisma';
+import { z } from 'zod';
+import { withAuth } from '@/lib/rbac';
+import { optionalTextSchema, parseJson } from '@/lib/validation';
 
 // GET /api/users/profile - Get current user profile
 export async function GET(request: NextRequest) {
+  const authResult = await withAuth(request);
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { id: authResult.user.id },
       select: {
         id: true,
         email: true,
@@ -48,42 +43,26 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// The profile form always sends all four fields; a blank phone/department clears it
+const updateProfileSchema = z.object({
+  firstName: z.string('First name is required').trim().min(1, 'First name is required').max(100),
+  lastName: z.string('Last name is required').trim().min(1, 'Last name is required').max(100),
+  phone: optionalTextSchema,
+  department: optionalTextSchema,
+});
+
 // PUT /api/users/profile - Update current user profile
 export async function PUT(request: NextRequest) {
+  const authResult = await withAuth(request);
+  if (authResult instanceof NextResponse) return authResult;
+
+  const data = await parseJson(request, updateProfileSchema);
+  if (data instanceof NextResponse) return data;
+
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const body = await request.json();
-    const { firstName, lastName, phone, department } = body;
-
-    // Find user
-    const existingUser = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!existingUser) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
-    // Update user
     const updatedUser = await prisma.user.update({
-      where: { id: existingUser.id },
-      data: {
-        ...(firstName && { firstName }),
-        ...(lastName && { lastName }),
-        ...(phone && { phone }),
-        ...(department && { department }),
-      },
+      where: { id: authResult.user.id },
+      data,
       select: {
         id: true,
         email: true,
