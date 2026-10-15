@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutGrid,
   Users,
@@ -15,13 +16,11 @@ import {
   ChevronRight,
   LogOut,
 } from 'lucide-react';
-import { useDashboard } from '@/app/dashboard/DashboardContext';
-
-type PanelType = 'home' | 'attendance' | 'leave' | 'employees' | 'rooms' | 'reports' | 'settings';
+import { useSidebar } from '@/components/dashboard/sidebar-context';
 
 interface NavItem {
   label: string;
-  panel: PanelType;
+  href: string;
   icon: React.ReactNode;
   roles?: Array<'ADMIN' | 'MANAGER' | 'EMPLOYEE'>;
   badge?: boolean;
@@ -30,51 +29,52 @@ interface NavItem {
 const navItems: NavItem[] = [
   {
     label: 'Dashboard',
-    panel: 'home',
+    href: '/dashboard',
     icon: <LayoutGrid size={20} />,
     roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'],
   },
   {
     label: 'Employees',
-    panel: 'employees',
+    href: '/employees',
     icon: <Users size={20} />,
     roles: ['ADMIN', 'MANAGER'],
   },
   {
     label: 'Leave Management',
-    panel: 'leave',
+    href: '/leave',
     icon: <Calendar size={20} />,
     roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'],
     badge: true,
   },
   {
     label: 'Attendance',
-    panel: 'attendance',
+    href: '/attendance',
     icon: <Clock size={20} />,
     roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'],
   },
   {
     label: 'Room Booking',
-    panel: 'rooms',
+    href: '/rooms',
     icon: <DoorOpen size={20} />,
     roles: ['ADMIN', 'MANAGER', 'EMPLOYEE'],
   },
   {
     label: 'Reports',
-    panel: 'reports',
+    href: '/reports',
     icon: <BarChart3 size={20} />,
     roles: ['ADMIN', 'MANAGER'],
   },
   {
     label: 'Settings',
-    panel: 'settings',
+    href: '/settings',
     icon: <Settings size={20} />,
     roles: ['ADMIN'],
   },
 ];
 
 export default function Sidebar() {
-  const { activePanel, setActivePanel, sidebarOpen, setSidebarOpen } = useDashboard();
+  const { sidebarOpen, setSidebarOpen } = useSidebar();
+  const pathname = usePathname();
   const { data: session } = useSession();
   const router = useRouter();
   const userRole = session?.user?.role || 'EMPLOYEE';
@@ -133,13 +133,13 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-6 px-2 scrollbar-thin scrollbar-thumb-moss-300 scrollbar-track-transparent">
         <ul className="space-y-1.5">
           {visibleItems.map((item) => {
-            const active = activePanel === item.panel;
+            // Sub-pages (e.g. /leave/request) keep their section highlighted
+            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
-              <li key={item.panel} className="relative group">
-                <button
-                  onClick={() => {
-                    setActivePanel(item.panel);
-                  }}
+              <li key={item.href} className="relative group">
+                <Link
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
                   style={{
                     transition: 'all 400ms cubic-bezier(0.4, 0, 0.2, 1)',
                   }}
@@ -187,7 +187,7 @@ export default function Sidebar() {
                       {pendingCount}
                     </span>
                   )}
-                </button>
+                </Link>
                 {!sidebarOpen && (
                   <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-moss-900 text-white text-xs py-2 px-3 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-xl">
                     {item.label}

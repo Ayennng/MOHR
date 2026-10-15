@@ -162,7 +162,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-moss-50/30 to-white py-8 px-4 sm:px-6 lg:px-8">
+    <div>
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-moss-100 overflow-hidden">

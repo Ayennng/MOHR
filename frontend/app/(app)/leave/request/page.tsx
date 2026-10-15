@@ -23,10 +23,7 @@ export default function RequestLeavePage() {
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalance | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const handleBackToLeave = () => {
-    sessionStorage.setItem('dashboardPanel', 'leave');
-    router.push('/dashboard');
-  };
+  const handleBackToLeave = () => router.push('/leave');
 
   useEffect(() => {
     const fetchBalance = async () => {
@@ -78,8 +75,8 @@ export default function RequestLeavePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-moss-50 via-white to-emerald-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div>
+      <div>
         {/* Header with gradient background */}
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-moss-600 to-moss-800 p-8 mb-8 shadow-xl">
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: HEADER_PATTERN }}></div>

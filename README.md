@@ -134,9 +134,12 @@ Sign out and back in. From then on, manage roles in **Settings → Users** and s
 ```
 MOHR/
 ├── frontend/
-│   ├── app/              # Pages (dashboard, attendance, leave, employees, rooms, reports, settings, profile)
+│   ├── app/
+│   │   ├── (app)/        # Signed-in pages sharing one layout (header + sidebar): dashboard, attendance,
+│   │   │                 # leave, employees, rooms, reports, settings, profile. The group name isn't in the URL.
+│   │   ├── (auth)/       # Login and register
 │   │   └── api/          # Proxy routes to the backend (one-liners using lib/proxy.ts)
-│   ├── components/       # UI library (components/ui) and feature components
+│   ├── components/       # UI library (components/ui), sidebar/header, feature components
 │   ├── lib/              # NextAuth config (auth.ts), proxy helper, login rate limiter
 │   └── proxy.ts          # Redirects signed-out visitors to /login
 │

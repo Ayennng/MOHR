@@ -132,7 +132,7 @@ export default function SettingsPage() {
   // Settings are only fetched for admins, so only admins wait on them
   if (sessionStatus === 'loading' || (isAdmin && isLoading)) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-moss-50/30 to-white py-8 px-4 sm:px-6 lg:px-8">
+      <div>
         <div className="max-w-2xl mx-auto text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-moss-600 mx-auto"></div>
           <p className="mt-4 text-moss-600">Loading settings...</p>
@@ -143,7 +143,7 @@ export default function SettingsPage() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-moss-50/30 to-white py-8 px-4 sm:px-6 lg:px-8">
+      <div>
         <div className="max-w-2xl mx-auto">
           <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-8 text-center shadow-sm">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -183,7 +183,7 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-moss-50/30 to-white py-8 px-4 sm:px-6 lg:px-8">
+    <div>
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header Card */}
         <div className="bg-white rounded-2xl shadow-sm border border-moss-100 overflow-hidden">

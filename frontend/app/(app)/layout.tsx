@@ -2,10 +2,12 @@
 
 import Header from '@/components/dashboard/header';
 import Sidebar from '@/components/dashboard/sidebar';
-import { DashboardProvider, useDashboard } from './DashboardContext';
+import { SidebarProvider, useSidebar } from '@/components/dashboard/sidebar-context';
 
-function DashboardContent({ children }: { children: React.ReactNode }) {
-  const { sidebarOpen } = useDashboard();
+// Shared shell (header + sidebar) for every signed-in page in the (app) route group.
+// Route groups don't change URLs: app/(app)/leave/page.tsx is still /leave.
+function AppShell({ children }: { children: React.ReactNode }) {
+  const { sidebarOpen } = useSidebar();
 
   return (
     <div className="min-h-screen bg-linear-to-b from-moss-50 to-white">
@@ -18,7 +20,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         <Sidebar />
 
         {/* Page content - responsive margin based on sidebar */}
-        <main 
+        <main
           className={`flex-1 overflow-y-auto ${
             sidebarOpen ? 'ml-64' : 'ml-20'
           }`}
@@ -35,14 +37,14 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function DashboardLayout({
+export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <DashboardProvider>
-      <DashboardContent>{children}</DashboardContent>
-    </DashboardProvider>
+    <SidebarProvider>
+      <AppShell>{children}</AppShell>
+    </SidebarProvider>
   );
 }

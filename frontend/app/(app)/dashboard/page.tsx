@@ -10,15 +10,7 @@ import {
   TrendingUp,
   ArrowRight,
 } from 'lucide-react';
-import { useDashboard } from './DashboardContext';
-
-// Import all page content as components
-import AttendancePage from '../attendance/page';
-import LeavePage from '../leave/page';
-import EmployeesPage from '../employees/page';
-import RoomsPage from '../rooms/page';
-import ReportsPage from '../reports/page';
-import SettingsPage from '../settings/page';
+import Link from 'next/link';
 
 interface DashboardStats {
   totalEmployees: number;
@@ -32,7 +24,26 @@ interface StatCard {
   value: number | string;
   icon: React.ReactNode;
   color: 'moss' | 'sage' | 'amber' | 'red' | 'blue';
-  panel?: string;
+  href?: string; // where clicking the card goes; omitted = not clickable
+}
+
+/** A stat card that links to its section when it has an `href`. */
+function StatCardLink({
+  href,
+  className,
+  children,
+}: {
+  href?: string;
+  className: string;
+  children: React.ReactNode;
+}) {
+  return href ? (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  ) : (
+    <div className={className}>{children}</div>
+  );
 }
 
 const colorClasses = {
@@ -51,9 +62,10 @@ const iconColors = {
   blue: 'text-white',
 };
 
-function DashboardHome() {
+export default function DashboardPage() {
   const { data: session } = useSession();
-  const { setActivePanel } = useDashboard();
+  // The employee directory is only open to admins and managers
+  const canViewEmployees = session?.user?.role === 'ADMIN' || session?.user?.role === 'MANAGER';
   const [stats, setStats] = useState<DashboardStats>({
     totalEmployees: 0,
     pendingLeaveRequests: 0,
@@ -103,28 +115,28 @@ function DashboardHome() {
       value: stats.totalEmployees,
       icon: <Users size={28} />,
       color: 'moss',
-      panel: 'employees',
+      href: canViewEmployees ? '/employees' : undefined,
     },
     {
       title: 'Pending Leave Requests',
       value: stats.pendingLeaveRequests,
       icon: <Calendar size={28} />,
       color: 'blue',
-      panel: 'leave',
+      href: '/leave',
     },
     {
       title: 'Absent Today',
       value: stats.absentToday,
       icon: <Clock size={28} />,
       color: 'amber',
-      panel: 'attendance',
+      href: '/attendance',
     },
     {
       title: 'Rooms Booked Today',
       value: stats.roomsBooked,
       icon: <DoorOpen size={28} />,
       color: 'red',
-      panel: 'rooms',
+      href: '/rooms',
     },
   ];
 
@@ -170,12 +182,12 @@ function DashboardHome() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((card) => (
-          <button
+          <StatCardLink
             key={card.title}
-            onClick={() => card.panel && setActivePanel(card.panel as any)}
-            className={`group relative h-full border-2 rounded-2xl p-7 transition-all duration-300 hover:shadow-xl hover:-translate-y-1 cursor-pointer overflow-hidden text-left ${
-              colorClasses[card.color]
-            }`}
+            href={card.href}
+            className={`group relative h-full border-2 rounded-2xl p-7 transition-all duration-300 overflow-hidden text-left ${
+              card.href ? 'hover:shadow-xl hover:-translate-y-1 cursor-pointer' : ''
+            } ${colorClasses[card.color]}`}
           >
             <div className="absolute inset-0 bg-linear-to-br from-white to-transparent opacity-0 group-hover:opacity-10 transition-opacity"></div>
             
@@ -198,7 +210,7 @@ function DashboardHome() {
             <div className="relative flex items-center gap-2 text-green-600">
               <span className="text-sm font-semibold">↑ Active</span>
             </div>
-          </button>
+          </StatCardLink>
         ))}
       </div>
 
@@ -209,8 +221,8 @@ function DashboardHome() {
           Quick Actions
         </h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <button
-            onClick={() => setActivePanel('leave')}
+          <Link
+            href="/leave/request"
             className="relative group bg-white rounded-2xl border-2 border-moss-100 p-8 shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all duration-300 overflow-hidden text-left"
           >
             <div className="absolute inset-0 bg-linear-to-br from-moss-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -228,10 +240,10 @@ function DashboardHome() {
             <span className="relative inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-moss-500 to-moss-600 text-white rounded-xl font-semibold hover:from-moss-600 hover:to-moss-700 transition-all shadow-md hover:shadow-lg">
               New Request <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
             </span>
-          </button>
+          </Link>
 
-          <button
-            onClick={() => setActivePanel('attendance')}
+          <Link
+            href="/attendance"
             className="relative group bg-white rounded-2xl border-2 border-moss-100 p-8 shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all duration-300 overflow-hidden text-left"
           >
             <div className="absolute inset-0 bg-linear-to-br from-emerald-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -249,7 +261,7 @@ function DashboardHome() {
             <span className="relative inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-semibold hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-md hover:shadow-lg">
               View Attendance <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
             </span>
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -271,29 +283,3 @@ function DashboardHome() {
   );
 }
 
-export default function DashboardPage() {
-  const { activePanel } = useDashboard();
-
-  const renderPanel = () => {
-    switch (activePanel) {
-      case 'home':
-        return <DashboardHome />;
-      case 'attendance':
-        return <AttendancePage />;
-      case 'leave':
-        return <LeavePage />;
-      case 'employees':
-        return <EmployeesPage />;
-      case 'rooms':
-        return <RoomsPage />;
-      case 'reports':
-        return <ReportsPage />;
-      case 'settings':
-        return <SettingsPage />;
-      default:
-        return <DashboardHome />;
-    }
-  };
-
-  return <div>{renderPanel()}</div>;
-}

@@ -149,3 +149,17 @@ Goal: the backend verifies identity itself on every request.
   workspace root (warning only); deleting it is safe if nothing else uses it.
 - Not built (out of scope so far): employees cancelling their own pending leave (status CANCELLED exists but
   nothing sets it), cancelling room bookings, public holidays in working-day counts.
+
+## Follow-up refactor (after the audit)
+
+- [x] One shared layout for all signed-in pages: pages moved into `frontend/app/(app)/` (URLs unchanged).
+      The `/dashboard` "panel" switcher, which imported other pages' route files, is gone. The sidebar uses
+      real links with the active item taken from the URL, so refresh, Back and bookmarks work, and sub-pages
+      (Request Leave, Add/Edit Employee, Profile) now show the sidebar. `DashboardContext` + its
+      `sessionStorage` back-navigation workaround were replaced by `components/dashboard/sidebar-context.tsx`
+      (sidebar open/closed only).
+- [x] The root layout passes the server session to `SessionProvider`, so role-based menu items appear in the
+      first render instead of popping in.
+- [x] Dead code removed: `Character.tsx`, `auth-illustration.tsx`, `hero-illustration.tsx`, `auth-card.tsx`,
+      `lib/types.ts`.
+      Verified: 11 pages render inside the shell with the correct active item; e2e suites unchanged; build passes.
