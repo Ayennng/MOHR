@@ -46,3 +46,6 @@ nul
 
 # Claude
 .claude/
+
+# TypeScript incremental build info
+*.tsbuildinfo

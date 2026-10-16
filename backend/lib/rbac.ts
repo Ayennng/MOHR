@@ -25,6 +25,12 @@ export async function withAuth(
   const token = await getToken({
     req,
     secret: process.env.NEXTAUTH_SECRET,
+    // Over HTTPS the frontend issues "__Secure-next-auth.session-token" (possibly split
+    // into .0/.1 chunks); locally it's "next-auth.session-token". Read whichever was
+    // sent. The name doesn't affect security: the contents are verified with the secret.
+    secureCookie: req.cookies
+      .getAll()
+      .some((c) => c.name.startsWith('__Secure-next-auth.session-token')),
   });
 
   const userId = typeof token?.id === 'string' ? token.id : token?.sub;

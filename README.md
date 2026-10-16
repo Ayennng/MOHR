@@ -168,11 +168,23 @@ MOHR/
 
 ## 🚢 Deployment notes
 
+### Render
+
+[`render.yaml`](render.yaml) defines the whole stack in the Singapore region: the public frontend, the backend as a private service with a 1 GB disk for uploads, and a Postgres database that accepts private connections only. It needs paid plans (about US$20/month at the smallest sizes).
+
+1. Push the repository to GitHub.
+2. In the Render Dashboard choose **New → Blueprint**, pick the repository, review the resources and apply. Render generates the shared `NEXTAUTH_SECRET`, wires `DATABASE_URL`, `BACKEND_URL` and `NEXTAUTH_URL`, and runs `prisma migrate deploy` before every backend deploy.
+3. Register at the frontend's `onrender.com` URL, then open the backend's **Shell** tab and promote yourself: `node scripts/make-admin.mjs you@example.com`.
+
+After adding a custom domain, set the frontend's `NEXTAUTH_URL` to it.
+
+### Any host
+
 - **Expose only the frontend.** Keep the backend on a private network: it enforces auth anyway, but it doesn't need to be public.
 - **Uploads need persistent disk storage.** Point `UPLOADS_DIR` at a volume that survives redeploys. Serverless hosts with ephemeral filesystems (e.g. Vercel functions) will lose uploads.
 - **Run one instance of each app.** Login rate limits are kept in memory per process. To run several instances, move them to a shared store such as Redis.
 - **Set `X-Forwarded-For` at your reverse proxy** so the per-IP sign-in limit sees real client addresses.
-- Use HTTPS for both `NEXTAUTH_URL`s in production.
+- Use HTTPS for the frontend's `NEXTAUTH_URL` in production.
 - **Upgrading from a version that stored uploads in `backend/public/uploads`?** Run `node scripts/migrate-uploads.mjs` from `backend/` once.
 
 ---
@@ -185,7 +197,7 @@ MOHR/
 
 ## 🐛 Troubleshooting
 
-**Every API call returns 401 after signing in.** The two apps' `NEXTAUTH_SECRET` values differ, or one `NEXTAUTH_URL` is `https` and the other `http`.
+**Every API call returns 401 after signing in.** The two apps' `NEXTAUTH_SECRET` values differ.
 
 **"Too many failed attempts".** Wait 15 minutes, or restart the apps (the limits are in memory).
 

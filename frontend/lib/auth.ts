@@ -2,6 +2,7 @@ import NextAuth from 'next-auth';
 import type { NextAuthOptions, User } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { createRateLimiter, tooManyAttemptsMessage } from '@/lib/rate-limit';
+import { BACKEND_URL } from '@/lib/backend-url';
 
 // Extend NextAuth types to include custom fields
 declare module 'next-auth' {
@@ -66,8 +67,7 @@ export const authOptions: NextAuthOptions = {
 
         let res: Response;
         try {
-          const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
-          res = await fetch(`${backendUrl}/api/auth/login`, {
+          res = await fetch(`${BACKEND_URL}/api/auth/login`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
