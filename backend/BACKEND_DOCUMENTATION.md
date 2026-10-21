@@ -103,7 +103,7 @@ Employee IDs (`EMP0001`, …) are the highest existing number + 1, generated und
 | `GET /api/files/avatars/<name>` | Any | Image |
 | `GET /api/files/leave-attachments/<name>` | The requester, ADMIN, MANAGER (others `404`) | File, `Cache-Control: private, no-store` |
 
-Files are stored under `UPLOADS_DIR` (default `backend/uploads/`), never under `public/`. Names are random UUIDs, and file types are decided from the file's bytes.
+Files are stored in the database (`Upload` table, keyed by `<folder>/<name>`), so no persistent disk is needed. Names are random UUIDs, and file types are decided from the file's bytes.
 
 ## Library modules (`lib/`)
 
@@ -112,7 +112,7 @@ Files are stored under `UPLOADS_DIR` (default `backend/uploads/`), never under `
 | `rbac.ts` | `withAuth(req, roles?)`, `isLastActiveAdmin()` |
 | `employee.ts` | Employee creation/ID generation, leave balance (incl. yearly reset), balance helpers |
 | `dates.ts` | Company timezone, wall-clock ↔ UTC conversion, working-day count, `@db.Date` helpers |
-| `uploads.ts` | Private file storage, content-type detection |
+| `uploads.ts` | Private file storage (in the database), content-type detection |
 | `validation.ts` | zod schemas (`emailSchema`, `passwordSchema`, …), `parseJson()`, `rejectIfTooLarge()` |
 | `pagination.ts` | `parsePagination()`, `parseSortDirection()` |
 | `rate-limit.ts` | In-memory sliding-window limiter (single instance only) |
@@ -122,6 +122,5 @@ Files are stored under `UPLOADS_DIR` (default `backend/uploads/`), never under `
 ## Scripts and tests
 
 - `node scripts/make-admin.mjs <email>`: promote an account to admin (first-admin bootstrap).
-- `node scripts/migrate-uploads.mjs`: one-off move of legacy `public/uploads` files into private storage.
 - `npm test`: unit tests in `tests/` (dates/timezones, working days, file detection, validation, pagination, rate limiting).
 - `npm run typecheck`: TypeScript check.

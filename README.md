@@ -58,7 +58,7 @@ Browser ──► frontend (3000) ──► backend (3001) ──► PostgreSQL
 - The browser only talks to the **frontend**. Its `/api/*` routes are thin proxies (`frontend/lib/proxy.ts`) that forward the request with the user's **session cookie only**.
 - The **backend** decodes that cookie itself (both apps share `NEXTAUTH_SECRET`) and **reloads the user from the database on every request** (`backend/lib/rbac.ts`). Deactivating someone or changing their role takes effect immediately.
 - The backend never trusts identity headers. Only `/api/auth/login` and `/api/auth/register` are public.
-- Uploaded files live in a private `backend/uploads/` folder and are served only through `/api/files/...` after an access check. Leave attachments are visible only to the requester, managers and admins.
+- Uploaded files are stored in the database and served only through `/api/files/...` after an access check. Leave attachments are visible only to the requester, managers and admins.
 - Failed sign-ins are rate-limited: 5 per email and 30 per client IP, per 15 minutes.
 
 ---
@@ -87,8 +87,6 @@ cd ../frontend && npm install
 DATABASE_URL="postgresql://postgres:password@localhost:5432/mohr_db"
 NEXTAUTH_SECRET="<same long random value as the frontend>"
 NEXTAUTH_URL="http://localhost:3001"
-# Optional: where uploads are stored (default: backend/uploads)
-# UPLOADS_DIR="/var/lib/mohr/uploads"
 ```
 
 `frontend/.env.local`:
@@ -147,9 +145,8 @@ MOHR/
     ├── app/api/          # API routes (see backend/BACKEND_DOCUMENTATION.md)
     ├── lib/              # rbac (auth), employee, dates (timezone), uploads, validation, pagination, rate-limit
     ├── prisma/           # Schema and migrations
-    ├── scripts/          # make-admin.mjs, migrate-uploads.mjs
-    ├── tests/            # Vitest unit tests
-    └── uploads/          # Private uploaded files (gitignored)
+    ├── scripts/          # make-admin.mjs
+    └── tests/            # Vitest unit tests
 ```
 
 ---
@@ -170,22 +167,21 @@ MOHR/
 
 ### Render
 
-[`render.yaml`](render.yaml) defines the whole stack in the Singapore region: the public frontend, the backend as a private service with a 1 GB disk for uploads, and a Postgres database that accepts private connections only. It needs paid plans (about US$20/month at the smallest sizes).
+[`render.yaml`](render.yaml) runs both apps on Render's free plan in the Singapore region. The database lives elsewhere: [Neon](https://neon.tech)'s free Postgres works and, unlike Render's free database, doesn't expire after 30 days. Free services sleep after 15 minutes idle, so the first visit after that takes about a minute.
 
-1. Push the repository to GitHub.
-2. In the Render Dashboard choose **New → Blueprint**, pick the repository, review the resources and apply. Render generates the shared `NEXTAUTH_SECRET`, wires `DATABASE_URL`, `BACKEND_URL` and `NEXTAUTH_URL`, and runs `prisma migrate deploy` before every backend deploy.
-3. Register at the frontend's `onrender.com` URL, then open the backend's **Shell** tab and promote yourself: `node scripts/make-admin.mjs you@example.com`.
+1. Create a Neon project (region: Singapore) and copy its connection string with **connection pooling turned off**.
+2. In the Render Dashboard choose **Blueprints → New Blueprint Instance**, pick the repository and paste the connection string when asked for `DATABASE_URL`. Render generates the shared `NEXTAUTH_SECRET`, sets `BACKEND_URL` and `NEXTAUTH_URL`, and the backend build runs `prisma migrate deploy`.
+3. Register at the frontend's `onrender.com` URL, then promote yourself from your own machine (free services have no shell): in `backend/`, run `DATABASE_URL="<neon connection string>" node scripts/make-admin.mjs you@example.com`.
 
 After adding a custom domain, set the frontend's `NEXTAUTH_URL` to it.
 
 ### Any host
 
-- **Expose only the frontend.** Keep the backend on a private network: it enforces auth anyway, but it doesn't need to be public.
-- **Uploads need persistent disk storage.** Point `UPLOADS_DIR` at a volume that survives redeploys. Serverless hosts with ephemeral filesystems (e.g. Vercel functions) will lose uploads.
+- **Prefer exposing only the frontend.** The backend enforces auth on every route, but if your host has a private network, keep it there.
+- **Uploads are stored in the database**, so the apps need no persistent disk.
 - **Run one instance of each app.** Login rate limits are kept in memory per process. To run several instances, move them to a shared store such as Redis.
 - **Set `X-Forwarded-For` at your reverse proxy** so the per-IP sign-in limit sees real client addresses.
 - Use HTTPS for the frontend's `NEXTAUTH_URL` in production.
-- **Upgrading from a version that stored uploads in `backend/public/uploads`?** Run `node scripts/migrate-uploads.mjs` from `backend/` once.
 
 ---
 

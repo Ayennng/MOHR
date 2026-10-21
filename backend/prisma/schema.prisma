@@ -208,6 +208,14 @@ model Session {
   @@index([userId])
 }
 
+// Uploaded files (avatars, leave attachments), stored in the database so they
+// survive on hosts without a persistent disk. `key` is "<folder>/<name>.<ext>".
+model Upload {
+  key       String   @id
+  data      Bytes
+  createdAt DateTime @default(now())
+}
+
 model Settings {
   id        String   @id @default(cuid())
   // General Settings

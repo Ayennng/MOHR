@@ -1,16 +1,11 @@
-import path from 'path';
 import { randomUUID } from 'crypto';
-import { mkdir, readFile, unlink, writeFile } from 'fs/promises';
+import prisma from '@/lib/prisma';
 
 /**
- * Uploaded files live outside `public/` so they are never served without an
- * access check; `/api/files/...` serves them after authenticating the caller.
- * Paths into UPLOADS_DIR carry `turbopackIgnore` so the build doesn't try to bundle
- * runtime uploads (or the whole project) into the server output.
+ * Uploaded files are stored in the database (the Upload table) rather than on disk,
+ * so they survive redeploys on hosts without persistent storage. They are never
+ * public: `/api/files/...` serves them after authenticating the caller.
  */
-export const UPLOADS_DIR = process.env.UPLOADS_DIR
-  ? path.resolve(process.env.UPLOADS_DIR)
-  : path.join(process.cwd(), 'uploads');
 
 export type UploadFolder = 'avatars' | 'leave-attachments';
 export type FileType = 'jpg' | 'png' | 'webp' | 'pdf';
@@ -48,30 +43,20 @@ export function isValidKey(key: string) {
 
 /** Saves `buffer` under a random name and returns the URL to store in the database. */
 export async function saveUpload(folder: UploadFolder, type: FileType, buffer: Buffer) {
-  const dir = path.join(/*turbopackIgnore: true*/ UPLOADS_DIR, folder);
-  await mkdir(dir, { recursive: true });
-  const filename = `${randomUUID()}.${type}`;
-  await writeFile(path.join(/*turbopackIgnore: true*/ dir, filename), buffer);
-  return `${URL_PREFIX}${folder}/${filename}`;
+  const key = `${folder}/${randomUUID()}.${type}`;
+  await prisma.upload.create({ data: { key, data: new Uint8Array(buffer) } });
+  return `${URL_PREFIX}${key}`;
 }
 
 export async function readUpload(key: string) {
   if (!isValidKey(key)) return null;
-  try {
-    return await readFile(path.join(/*turbopackIgnore: true*/ UPLOADS_DIR, key));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
-    throw error;
-  }
+  const upload = await prisma.upload.findUnique({ where: { key }, select: { data: true } });
+  return upload?.data ?? null;
 }
 
 /** Deletes the file behind a stored URL; missing files are ignored. */
 export async function deleteUpload(url: string | null | undefined) {
   const key = keyFromUrl(url);
   if (!key) return;
-  try {
-    await unlink(path.join(/*turbopackIgnore: true*/ UPLOADS_DIR, key));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-  }
+  await prisma.upload.deleteMany({ where: { key } });
 }
