@@ -15,7 +15,7 @@ envVarGroups:
 
 services:
   - type: web
-    name: mohr
+    name: mohr-hr
     runtime: node
     region: singapore
     plan: free
@@ -33,7 +33,7 @@ services:
       - key: NEXTAUTH_URL
         fromService:
           type: web
-          name: mohr
+          name: mohr-hr
           envVarKey: RENDER_EXTERNAL_URL
       - fromGroup: mohr-shared
 
