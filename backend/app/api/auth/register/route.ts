@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth';
-import { createEmployeeRecord, isUniqueViolation } from '@/lib/employee';
+import { createEmployeeRecord, findUserByEmail } from '@/lib/employee';
+import { errorResponse, isUniqueViolation, jsonError } from '@/lib/http';
 import { emailSchema, optionalTextSchema, parseJson, passwordSchema } from '@/lib/validation';
 
 const registerSchema = z.object({
@@ -15,8 +16,7 @@ const registerSchema = z.object({
   phone: optionalTextSchema,
 });
 
-const emailTaken = () =>
-  NextResponse.json({ error: 'User with this email already exists' }, { status: 409 });
+const emailTaken = () => jsonError(409, 'User with this email already exists');
 
 // POST /api/auth/register - public self sign-up; always creates an EMPLOYEE
 export async function POST(request: NextRequest) {
@@ -24,30 +24,23 @@ export async function POST(request: NextRequest) {
   if (data instanceof NextResponse) return data;
 
   try {
-    // Older accounts may have mixed-case emails, so compare case-insensitively
-    const existingUser = await prisma.user.findFirst({
-      where: { email: { equals: data.email, mode: 'insensitive' } },
-    });
-    if (existingUser) return emailTaken();
+    if (await findUserByEmail(data.email)) return emailTaken();
 
-    const hashedPassword = await hashPassword(data.password);
+    const password = await hashPassword(data.password);
 
-    // Create user and employee record in a transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const user = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           email: data.email,
-          password: hashedPassword,
+          password,
           firstName: data.firstName,
           lastName: data.lastName,
           department: data.department,
           phone: data.phone,
           role: 'EMPLOYEE', // Self-registration never grants elevated roles
-          active: true,
         },
       });
 
-      // Create employee record (unique ID) and leave balance
       await createEmployeeRecord(tx, {
         userId: user.id,
         position: data.position || data.department || 'Employee',
@@ -60,14 +53,11 @@ export async function POST(request: NextRequest) {
       {
         message: 'User registered successfully',
         user: {
-          id: result.id,
-          email: result.email,
-          firstName: result.firstName,
-          lastName: result.lastName,
-          role: result.role,
-          department: result.department,
-          phone: result.phone,
-          createdAt: result.createdAt,
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role,
         },
       },
       { status: 201 }
@@ -75,10 +65,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     // Another registration with this email landed at the same moment
     if (isUniqueViolation(error)) return emailTaken();
-    console.error('Registration error:', error);
-    return NextResponse.json(
-      { error: 'Failed to register user' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Registration failed');
   }
 }

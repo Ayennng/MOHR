@@ -3,7 +3,9 @@ import { detectFileType, isValidKey, keyFromUrl } from '@/lib/uploads';
 import { emailSchema, passwordSchema, dateStringSchema, optionalTextSchema } from '@/lib/validation';
 import { parsePagination, parseSortDirection } from '@/lib/pagination';
 import { createRateLimiter, tooManyAttemptsMessage } from '@/lib/rate-limit';
-import { formatEmployeeId, remainingLeaveDays } from '@/lib/employee';
+import { formatEmployeeId } from '@/lib/employee';
+import { remainingLeaveDays } from '@/lib/leave';
+import { ApiError, errorResponse } from '@/lib/http';
 import { generateTemporaryPassword } from '@/lib/auth';
 
 describe('detectFileType', () => {
@@ -144,5 +146,22 @@ describe('employee helpers', () => {
     const a = generateTemporaryPassword();
     expect(a).toHaveLength(16);
     expect(a).not.toBe(generateTemporaryPassword());
+  });
+});
+
+describe('errorResponse', () => {
+  it('passes an ApiError through with its own status and message', async () => {
+    const response = errorResponse(new ApiError(409, 'Already decided'), 'test');
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: 'Already decided' });
+  });
+
+  it('hides anything else behind a logged 500', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const response = errorResponse(new Error('connection string leaked'), 'test');
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: 'Internal server error' });
+    expect(log).toHaveBeenCalled();
+    log.mockRestore();
   });
 });

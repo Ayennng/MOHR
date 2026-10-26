@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { withAuth } from '@/lib/rbac';
-import { getCompanyTimezone, toDbDate, zonedDateString } from '@/lib/dates';
+import { errorResponse } from '@/lib/http';
+import { companyToday } from '@/lib/dates';
 
+// GET /api/dashboard/stats - today's headline numbers for the dashboard
 export async function GET(req: NextRequest) {
   const authResult = await withAuth(req);
   if (authResult instanceof NextResponse) return authResult;
   const { user } = authResult;
 
   try {
-    const today = toDbDate(zonedDateString(new Date(), await getCompanyTimezone()));
+    const today = await companyToday();
     const isApprover = user.role === 'ADMIN' || user.role === 'MANAGER';
 
     const [totalEmployees, presentToday, onLeaveToday, pendingLeaves, myBookingsToday] = await Promise.all([
@@ -55,10 +57,6 @@ export async function GET(req: NextRequest) {
       absentToday: Math.max(totalEmployees - presentToday - onLeaveToday, 0),
     });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to fetch dashboard stats');
   }
 }

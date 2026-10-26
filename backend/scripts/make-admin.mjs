@@ -5,22 +5,13 @@
 // Usage (from backend/):  node scripts/make-admin.mjs someone@example.com
 // Reads DATABASE_URL from the environment or .env.local.
 
-import { readFileSync } from 'fs';
-import path from 'path';
 import pg from 'pg';
+import { databaseUrl } from './database-url.mjs';
 
 const email = process.argv[2]?.trim().toLowerCase();
 if (!email) {
   console.error('Usage: node scripts/make-admin.mjs <email>');
   process.exit(1);
-}
-
-function databaseUrl() {
-  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  const env = readFileSync(path.join(process.cwd(), '.env.local'), 'utf8');
-  const match = env.match(/^DATABASE_URL="?([^"\r\n]+)/m);
-  if (!match) throw new Error('DATABASE_URL not set');
-  return match[1];
 }
 
 const client = new pg.Client({ connectionString: databaseUrl() });

@@ -1,106 +1,60 @@
-'use client';
-
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-export interface PaginationProps {
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-  totalItems?: number;
-  itemsPerPage?: number;
+/** Page numbers to show: always the first and last, two either side of the current one. */
+function pageNumbers(current: number, total: number): (number | '...')[] {
+  const pages: (number | '...')[] = [];
+  for (let page = 1; page <= total; page++) {
+    if (page === 1 || page === total || Math.abs(page - current) <= 2) pages.push(page);
+    else if (pages[pages.length - 1] !== '...') pages.push('...');
+  }
+  return pages;
 }
 
 export function Pagination({
-  currentPage,
-  totalPages,
+  page,
+  pageSize,
+  total,
   onPageChange,
-  totalItems,
-  itemsPerPage,
-}: PaginationProps) {
-  const getPageNumbers = () => {
-    const pages = [];
-    const maxPagesToShow = 5;
+}: {
+  page: number;
+  pageSize: number;
+  total: number;
+  onPageChange: (page: number) => void;
+}) {
+  const totalPages = Math.ceil(total / pageSize);
+  if (totalPages <= 1) return null;
 
-    if (totalPages <= maxPagesToShow) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
-      }
-    } else {
-      const leftSide = currentPage - 2;
-      const rightSide = currentPage + 2;
-
-      if (leftSide > 1) {
-        pages.push(1);
-        if (leftSide > 2) {
-          pages.push('...');
-        }
-      }
-
-      for (let i = Math.max(1, leftSide); i <= Math.min(totalPages, rightSide); i++) {
-        pages.push(i);
-      }
-
-      if (rightSide < totalPages) {
-        if (rightSide < totalPages - 1) {
-          pages.push('...');
-        }
-        pages.push(totalPages);
-      }
-    }
-
-    return pages;
-  };
-
-  const isFirstPage = currentPage === 1;
-  const isLastPage = currentPage === totalPages;
+  const arrow = 'p-2 text-moss-600 hover:bg-moss-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed';
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
-      {/* Info Text */}
-      {totalItems && itemsPerPage && (
-        <p className="text-sm text-moss-600">
-          Showing {(currentPage - 1) * itemsPerPage + 1} to{' '}
-          {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} results
-        </p>
-      )}
+      <p className="text-sm text-moss-600">
+        Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} results
+      </p>
 
-      {/* Pagination Controls */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={isFirstPage}
-          className="p-2 text-moss-600 hover:bg-moss-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          aria-label="Previous page"
-        >
+      <div className="flex items-center gap-1">
+        <button type="button" onClick={() => onPageChange(page - 1)} disabled={page === 1} className={arrow} aria-label="Previous page">
           <ChevronLeft size={20} />
         </button>
-
-        <div className="flex items-center gap-1">
-          {getPageNumbers().map((page, idx) => (
+        {pageNumbers(page, totalPages).map((n, i) =>
+          n === '...' ? (
+            <span key={`gap-${i}`} className="px-3 py-2 text-moss-500">
+              ...
+            </span>
+          ) : (
             <button
-              key={idx}
-              onClick={() => typeof page === 'number' && onPageChange(page)}
-              disabled={page === '...'}
-              className={`px-3 py-2 rounded-lg transition-colors ${
-                page === currentPage
-                  ? 'bg-moss-500 text-white'
-                  : page === '...'
-                    ? 'cursor-default'
-                    : 'text-moss-700 hover:bg-moss-50'
-              }`}
+              key={n}
+              type="button"
+              onClick={() => onPageChange(n)}
+              aria-current={n === page ? 'page' : undefined}
+              className={`px-3 py-2 rounded-lg ${n === page ? 'bg-moss-500 text-white' : 'text-moss-700 hover:bg-moss-50'}`}
             >
-              {page}
+              {n}
             </button>
-          ))}
-        </div>
-
-        <button
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={isLastPage}
-          className="p-2 text-moss-600 hover:bg-moss-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          aria-label="Next page"
-        >
+          )
+        )}
+        <button type="button" onClick={() => onPageChange(page + 1)} disabled={page === totalPages} className={arrow} aria-label="Next page">
           <ChevronRight size={20} />
         </button>
       </div>

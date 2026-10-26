@@ -1,45 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import prisma from '@/lib/prisma';
 import { withAuth } from '@/lib/rbac';
+import { errorResponse } from '@/lib/http';
 import { optionalTextSchema, parseJson } from '@/lib/validation';
+import { assertNotDemoAccount } from '@/lib/demo';
 
-// GET /api/users/profile - Get current user profile
+const profileSelect = {
+  id: true,
+  email: true,
+  firstName: true,
+  lastName: true,
+  role: true,
+  department: true,
+  phone: true,
+  avatar: true,
+} as const;
+
+// GET /api/users/profile - the signed-in user's profile
 export async function GET(request: NextRequest) {
   const authResult = await withAuth(request);
   if (authResult instanceof NextResponse) return authResult;
 
   try {
-    const user = await prisma.user.findUnique({
+    const user = await prisma.user.findUniqueOrThrow({
       where: { id: authResult.user.id },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        department: true,
-        phone: true,
-        avatar: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+      select: profileSelect,
     });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
-
     return NextResponse.json(user);
   } catch (error) {
-    console.error('Failed to fetch user profile:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to fetch profile');
   }
 }
 
@@ -51,7 +41,7 @@ const updateProfileSchema = z.object({
   department: optionalTextSchema,
 });
 
-// PUT /api/users/profile - Update current user profile
+// PUT /api/users/profile - update the signed-in user's profile
 export async function PUT(request: NextRequest) {
   const authResult = await withAuth(request);
   if (authResult instanceof NextResponse) return authResult;
@@ -60,28 +50,14 @@ export async function PUT(request: NextRequest) {
   if (data instanceof NextResponse) return data;
 
   try {
-    const updatedUser = await prisma.user.update({
+    assertNotDemoAccount(authResult.user.email);
+    const user = await prisma.user.update({
       where: { id: authResult.user.id },
       data,
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        department: true,
-        phone: true,
-        avatar: true,
-        updatedAt: true,
-      },
+      select: profileSelect,
     });
-
-    return NextResponse.json(updatedUser);
+    return NextResponse.json(user);
   } catch (error) {
-    console.error('Failed to update user profile:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to update profile');
   }
 }

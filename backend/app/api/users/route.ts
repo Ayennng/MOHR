@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { UserRole } from '@prisma/client';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { isLastActiveAdmin, withAuth } from '@/lib/rbac';
+import { ApiError, errorResponse, jsonError } from '@/lib/http';
 import { parseJson } from '@/lib/validation';
+import { assertNotDemoAccount } from '@/lib/demo';
 
 // Accounts are created through POST /api/employees (which also creates the employee
 // record and a temporary password) and are deactivated rather than deleted, so this
@@ -15,12 +17,7 @@ const userSelect = {
   firstName: true,
   lastName: true,
   role: true,
-  department: true,
-  phone: true,
-  avatar: true,
   active: true,
-  createdAt: true,
-  updatedAt: true,
 } as const;
 
 // GET /api/users - List all users (ADMIN)
@@ -31,18 +28,11 @@ export async function GET(req: NextRequest) {
   try {
     const users = await prisma.user.findMany({
       select: userSelect,
-      orderBy: {
-        createdAt: 'desc',
-      },
+      orderBy: { createdAt: 'desc' },
     });
-
     return NextResponse.json(users);
   } catch (error) {
-    console.error('Error fetching users:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch users' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to list users');
   }
 }
 
@@ -54,13 +44,6 @@ const updateUserSchema = z
   })
   .refine((u) => u.role !== undefined || u.active !== undefined, 'Nothing to update');
 
-/** An expected failure with a message for the client. */
-class UpdateError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
-  }
-}
-
 // PUT /api/users - change a user's role and/or active flag (ADMIN)
 export async function PUT(req: NextRequest) {
   const authResult = await withAuth(req, ['ADMIN']);
@@ -70,20 +53,18 @@ export async function PUT(req: NextRequest) {
   if (data instanceof NextResponse) return data;
 
   if (data.id === authResult.user.id) {
-    return NextResponse.json(
-      { error: 'You cannot change your own role or deactivate yourself' },
-      { status: 400 }
-    );
+    return jsonError(400, 'You cannot change your own role or deactivate yourself');
   }
 
   try {
     const user = await prisma.$transaction(async (tx) => {
       const target = await tx.user.findUnique({ where: { id: data.id } });
-      if (!target) throw new UpdateError(404, 'User not found');
+      if (!target) throw new ApiError(404, 'User not found');
+      assertNotDemoAccount(target.email);
 
       const removesAdmin = (data.role !== undefined && data.role !== 'ADMIN') || data.active === false;
       if (removesAdmin && (await isLastActiveAdmin(tx, data.id))) {
-        throw new UpdateError(400, 'At least one active admin is required');
+        throw new ApiError(400, 'At least one active admin is required');
       }
 
       if (data.active !== undefined) {
@@ -104,13 +85,6 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json(user);
   } catch (error) {
-    if (error instanceof UpdateError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-    console.error('Error updating user:', error);
-    return NextResponse.json(
-      { error: 'Failed to update user' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to update user');
   }
 }

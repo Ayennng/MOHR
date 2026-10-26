@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { prisma } from '@/lib/prisma';
+import prisma from '@/lib/prisma';
 import { withAuth } from '@/lib/rbac';
 import { hashPassword, verifyPassword } from '@/lib/auth';
+import { errorResponse, jsonError } from '@/lib/http';
 import { parseJson, passwordSchema } from '@/lib/validation';
 import { createRateLimiter, tooManyAttemptsMessage } from '@/lib/rate-limit';
+import { assertNotDemoAccount } from '@/lib/demo';
 
 const wrongCurrentPassword = createRateLimiter({ limit: 5, windowMs: 15 * 60 * 1000 });
 
@@ -22,12 +24,13 @@ const changePasswordSchema = z
 export async function PUT(req: NextRequest) {
   const authResult = await withAuth(req);
   if (authResult instanceof NextResponse) return authResult;
+  const userId = authResult.user.id;
 
   const data = await parseJson(req, changePasswordSchema);
   if (data instanceof NextResponse) return data;
 
   // A stolen session shouldn't allow unlimited guessing of the current password
-  const retryAfter = wrongCurrentPassword.retryAfter(authResult.user.id);
+  const retryAfter = wrongCurrentPassword.retryAfter(userId);
   if (retryAfter > 0) {
     return NextResponse.json(
       { error: tooManyAttemptsMessage(retryAfter) },
@@ -36,31 +39,26 @@ export async function PUT(req: NextRequest) {
   }
 
   try {
+    assertNotDemoAccount(authResult.user.email);
+
     const user = await prisma.user.findUniqueOrThrow({
-      where: { id: authResult.user.id },
+      where: { id: userId },
       select: { password: true },
     });
 
     if (!(await verifyPassword(data.currentPassword, user.password))) {
-      wrongCurrentPassword.hit(authResult.user.id);
-      return NextResponse.json(
-        { error: 'Current password is incorrect', field: 'currentPassword' },
-        { status: 400 }
-      );
+      wrongCurrentPassword.hit(userId);
+      return jsonError(400, 'Current password is incorrect', { field: 'currentPassword' });
     }
-    wrongCurrentPassword.reset(authResult.user.id);
+    wrongCurrentPassword.reset(userId);
 
     await prisma.user.update({
-      where: { id: authResult.user.id },
+      where: { id: userId },
       data: { password: await hashPassword(data.newPassword) },
     });
 
     return NextResponse.json({ message: 'Password changed successfully' });
   } catch (error) {
-    console.error('Failed to change password:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to change password');
   }
 }

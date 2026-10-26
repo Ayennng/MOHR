@@ -1,25 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { withAuth } from '@/lib/rbac';
+import { errorResponse } from '@/lib/http';
 import { fromDbDate } from '@/lib/dates';
 
 // GET /api/bookings - the current user's upcoming and in-progress room bookings, soonest
-// first. Past bookings are left out so the list doesn't grow forever.
+// first. Past and cancelled bookings are left out.
 export async function GET(req: NextRequest) {
   const authResult = await withAuth(req);
   if (authResult instanceof NextResponse) return authResult;
 
   try {
-    const employee = await prisma.employee.findUnique({
-      where: { userId: authResult.user.id },
-    });
-
-    if (!employee) {
-      return NextResponse.json([]);
-    }
-
     const bookings = await prisma.roomBooking.findMany({
-      where: { employeeId: employee.id, endTime: { gte: new Date() } },
+      where: {
+        employee: { userId: authResult.user.id },
+        status: { not: 'CANCELLED' },
+        endTime: { gte: new Date() },
+      },
       include: {
         room: { select: { name: true, location: true } },
       },
@@ -40,10 +37,6 @@ export async function GET(req: NextRequest) {
       }))
     );
   } catch (error) {
-    console.error(error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to list bookings');
   }
 }

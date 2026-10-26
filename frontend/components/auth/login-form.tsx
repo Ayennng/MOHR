@@ -7,22 +7,27 @@ import { z } from 'zod';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FormField } from './form-field';
+import { FormField, PasswordInput } from './form-field';
 
 const loginSchema = z.object({
-  email: z.string()
-    .email('Please enter a valid email address'),
-  password: z.string()
-    .min(6, 'Password must be at least 6 characters'),
+  email: z.email('Please enter a valid email address'),
+  password: z.string().min(1, 'Password is required'),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-export function LoginForm() {
+// Shared demo logins, created and reset nightly by backend/scripts/reset-demo.mjs
+const DEMO_PASSWORD = 'Demo1234';
+const DEMO_ACCOUNTS = [
+  { role: 'Admin', email: 'demo.admin@example.com' },
+  { role: 'Manager', email: 'demo.manager@example.com' },
+  { role: 'Employee', email: 'demo.employee@example.com' },
+];
+
+export function LoginForm({ showDemo = false, registered = false }: { showDemo?: boolean; registered?: boolean }) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
 
   // Wake the backend while the user types, so a sleeping free instance doesn't
   // add a second wait on submit
@@ -34,36 +39,29 @@ export function LoginForm() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-  });
+  } = useForm<LoginFormData>({ resolver: zodResolver(loginSchema) });
 
   const onSubmit = async (data: LoginFormData) => {
+    if (isLoading) return;
     setIsLoading(true);
     setError(null);
 
     try {
-      const result = await signIn('credentials', {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
+      const result = await signIn('credentials', { ...data, redirect: false });
 
       if (!result?.ok) {
         // "CredentialsSignin" is NextAuth's code for a rejected login; anything else
         // is a message thrown by authorize() (e.g. too many attempts)
         setError(
-          !result?.error || result.error === 'CredentialsSignin'
-            ? 'Invalid email or password'
-            : result.error
+          !result?.error || result.error === 'CredentialsSignin' ? 'Invalid email or password' : result.error
         );
         return;
       }
 
       router.push('/dashboard');
     } catch (err) {
-      setError('An error occurred during login. Please try again.');
       console.error('Login error:', err);
+      setError('An error occurred during login. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -74,65 +72,47 @@ export function LoginForm() {
       <h1 className="auth-heading">Welcome Back !</h1>
       <p className="auth-subheading">Sign in to your account to continue</p>
 
-      {error && (
-        <div className="error-message">
-          {error}
-        </div>
-      )}
+      {registered && !error && <div className="success-message">Account created. Sign in to continue.</div>}
+      {error && <div className="error-message">{error}</div>}
 
       <form onSubmit={handleSubmit(onSubmit)}>
         <FormField label="Email" error={errors.email?.message} required>
-          <input
-            type="email"
-            placeholder="your@email.com"
-            className="form-input"
-            {...register('email')}
-          />
+          <input type="email" placeholder="your@email.com" className="form-input" autoComplete="email" {...register('email')} />
         </FormField>
 
         <FormField label="Password" error={errors.password?.message} required>
-          <div className="password-input-wrapper">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Enter your password"
-              className="form-input"
-              {...register('password')}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="password-toggle"
-              aria-label={showPassword ? 'Hide password' : 'Show password'}
-            >
-              {showPassword ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-                  <line x1="1" y1="1" x2="23" y2="23" />
-                </svg>
-              )}
-            </button>
-          </div>
+          <PasswordInput placeholder="Enter your password" autoComplete="current-password" {...register('password')} />
         </FormField>
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className={`btn btn-primary ${isLoading ? 'btn-loading' : ''}`}
-        >
+        <button type="submit" disabled={isLoading} className={`btn btn-primary ${isLoading ? 'btn-loading' : ''}`}>
           {isLoading ? 'Signing in...' : 'Sign In'}
         </button>
       </form>
 
+      {showDemo && (
+        <div className="demo-panel">
+          <p className="demo-panel-title">Just looking? Try the demo</p>
+          <div className="demo-panel-buttons">
+            {DEMO_ACCOUNTS.map((account) => (
+              <button
+                key={account.email}
+                type="button"
+                disabled={isLoading}
+                className="btn demo-button"
+                onClick={() => onSubmit({ email: account.email, password: DEMO_PASSWORD })}
+              >
+                {account.role}
+              </button>
+            ))}
+          </div>
+          <p className="demo-panel-note">
+            Sample company data, reset every night. Password for all three: {DEMO_PASSWORD}
+          </p>
+        </div>
+      )}
+
       <div className="auth-link">
-        Don't have an account?{' '}
-        <Link href="/register">
-          Create one
-        </Link>
+        Don&apos;t have an account? <Link href="/register">Create one</Link>
       </div>
     </div>
   );

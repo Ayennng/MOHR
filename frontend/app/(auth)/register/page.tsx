@@ -1,6 +1,5 @@
-import { AuthHeroLayout } from '@/components/auth/auth-hero-layout';
+import { AuthHero } from '@/components/auth/auth-hero';
 import { RegisterForm } from '@/components/auth/register-form';
-import { HeroBackground } from '@/components/auth/hero-background';
 
 export const metadata = {
   title: 'Create Account | MoHR',
@@ -9,9 +8,8 @@ export const metadata = {
 
 export default function RegisterPage() {
   return (
-    <AuthHeroLayout
-      formChild={<RegisterForm />}
-      illustrationChild={<HeroBackground type="register" />}
-    />
+    <AuthHero title="Join Our Growth" subtitle="Start your journey with us. Simple, secure, and seamless HR management.">
+      <RegisterForm />
+    </AuthHero>
   );
 }

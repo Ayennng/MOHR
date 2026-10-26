@@ -1,0 +1,35 @@
+name: Reset demo data
+
+# Wipes the demo database and reloads the sample company every night, so the shared
+# demo logins always start clean. Needs the DEMO_DATABASE_URL repository secret: the
+# direct (non-pooled) Neon connection string. EVERYTHING in that database is deleted.
+
+on:
+  schedule:
+    - cron: '30 16 * * *' # 00:30 Malaysia time
+  workflow_dispatch:
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+    steps:
+      - name: Check the secret is set
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Add the DEMO_DATABASE_URL repository secret first."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: node scripts/reset-demo.mjs --yes

@@ -1,21 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import sharp from 'sharp';
+import prisma from '@/lib/prisma';
 import { withAuth } from '@/lib/rbac';
+import { errorResponse, jsonError } from '@/lib/http';
 import { deleteUpload, detectFileType, saveUpload } from '@/lib/uploads';
 import { rejectIfTooLarge } from '@/lib/validation';
-import sharp from 'sharp';
+import { assertNotDemoAccount } from '@/lib/demo';
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_AVATAR_PIXELS = 4000;
 
-const avatarUserSelect = {
-  id: true,
-  email: true,
-  firstName: true,
-  lastName: true,
-  avatar: true,
-} as const;
+/** Points the user at `avatar` (or none), then deletes the file it replaces. */
+async function replaceAvatar(userId: string, avatar: string | null) {
+  const previous = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { avatar: true } });
+  await prisma.user.update({ where: { id: userId }, data: { avatar } });
 
-// POST /api/users/avatar - Upload profile picture
+  // Only remove the old file once the new one is saved and recorded
+  await deleteUpload(previous.avatar).catch((error) =>
+    console.warn('Failed to delete old avatar file:', error)
+  );
+}
+
+// POST /api/users/avatar - upload a profile picture (multipart field "avatar")
 export async function POST(request: NextRequest) {
   const authResult = await withAuth(request);
   if (authResult instanceof NextResponse) return authResult;
@@ -23,118 +29,54 @@ export async function POST(request: NextRequest) {
   const tooLarge = rejectIfTooLarge(request, MAX_AVATAR_BYTES + 64 * 1024);
   if (tooLarge) return tooLarge;
 
+  let avatarUrl: string | null = null;
   try {
-    const formData = await request.formData();
-    const file = formData.get('avatar');
+    assertNotDemoAccount(authResult.user.email);
 
-    if (!(file instanceof File) || file.size === 0) {
-      return NextResponse.json(
-        { error: 'No file provided' },
-        { status: 400 }
-      );
-    }
-
-    if (file.size > MAX_AVATAR_BYTES) {
-      return NextResponse.json(
-        { error: 'File size exceeds 5MB limit' },
-        { status: 400 }
-      );
-    }
+    const file = (await request.formData()).get('avatar');
+    if (!(file instanceof File) || file.size === 0) return jsonError(400, 'No file provided');
+    if (file.size > MAX_AVATAR_BYTES) return jsonError(400, 'File size exceeds 5MB limit');
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
     // Check the actual bytes; the browser-supplied MIME type can be anything
     const type = detectFileType(buffer);
     if (type !== 'jpg' && type !== 'png' && type !== 'webp') {
-      return NextResponse.json(
-        { error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed.' },
-        { status: 400 }
-      );
+      return jsonError(400, 'Invalid file type. Only JPEG, PNG, and WebP are allowed.');
     }
 
-    const metadata = await sharp(buffer).metadata();
-    if ((metadata.width || 0) > 4000 || (metadata.height || 0) > 4000) {
-      return NextResponse.json(
-        { error: 'Image dimensions must not exceed 4000x4000 pixels' },
-        { status: 400 }
-      );
+    const { width = 0, height = 0 } = await sharp(buffer).metadata();
+    if (width > MAX_AVATAR_PIXELS || height > MAX_AVATAR_PIXELS) {
+      return jsonError(400, `Image dimensions must not exceed ${MAX_AVATAR_PIXELS}x${MAX_AVATAR_PIXELS} pixels`);
     }
 
     // Re-encoding also strips anything embedded in the original file
-    const processedImage = await sharp(buffer)
+    const resized = await sharp(buffer)
       .resize(200, 200, { fit: 'cover', position: 'center' })
       .jpeg({ quality: 90 })
       .toBuffer();
 
-    const previous = await prisma.user.findUniqueOrThrow({
-      where: { id: authResult.user.id },
-      select: { avatar: true },
-    });
+    avatarUrl = await saveUpload('avatars', 'jpg', resized);
+    await replaceAvatar(authResult.user.id, avatarUrl);
 
-    const avatarUrl = await saveUpload('avatars', 'jpg', processedImage);
-
-    let updatedUser;
-    try {
-      updatedUser = await prisma.user.update({
-        where: { id: authResult.user.id },
-        data: { avatar: avatarUrl },
-        select: avatarUserSelect,
-      });
-    } catch (dbError) {
-      // Don't leave an orphaned file behind
-      await deleteUpload(avatarUrl).catch(() => {});
-      throw dbError;
-    }
-
-    // Only remove the old file once the new one is saved and recorded
-    await deleteUpload(previous.avatar).catch((error) =>
-      console.warn('Failed to delete old avatar file:', error)
-    );
-
-    return NextResponse.json({
-      message: 'Avatar uploaded successfully',
-      avatar: avatarUrl,
-      user: updatedUser,
-    });
+    return NextResponse.json({ avatar: avatarUrl });
   } catch (error) {
-    console.error('Failed to upload avatar:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    // Don't leave an orphaned file behind if it wasn't recorded
+    if (avatarUrl) await deleteUpload(avatarUrl).catch(() => {});
+    return errorResponse(error, 'Failed to upload avatar');
   }
 }
 
-// DELETE /api/users/avatar - Remove profile picture
+// DELETE /api/users/avatar - remove the profile picture
 export async function DELETE(request: NextRequest) {
   const authResult = await withAuth(request);
   if (authResult instanceof NextResponse) return authResult;
 
   try {
-    const previous = await prisma.user.findUniqueOrThrow({
-      where: { id: authResult.user.id },
-      select: { avatar: true },
-    });
-
-    const updatedUser = await prisma.user.update({
-      where: { id: authResult.user.id },
-      data: { avatar: null },
-      select: avatarUserSelect,
-    });
-
-    await deleteUpload(previous.avatar).catch((error) =>
-      console.warn('Failed to delete avatar file:', error)
-    );
-
-    return NextResponse.json({
-      message: 'Avatar removed successfully',
-      user: updatedUser,
-    });
+    assertNotDemoAccount(authResult.user.email);
+    await replaceAvatar(authResult.user.id, null);
+    return NextResponse.json({ avatar: null });
   } catch (error) {
-    console.error('Failed to remove avatar:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to remove avatar');
   }
 }

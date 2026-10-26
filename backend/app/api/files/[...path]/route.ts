@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { withAuth } from '@/lib/rbac';
+import { errorResponse, jsonError } from '@/lib/http';
 import { CONTENT_TYPES, FileType, isValidKey, readUpload } from '@/lib/uploads';
 
 // GET /api/files/<folder>/<name> - serves an uploaded file after an access check.
@@ -15,7 +16,7 @@ export async function GET(
   const { user } = authResult;
 
   const key = path.join('/');
-  const notFound = NextResponse.json({ error: 'File not found' }, { status: 404 });
+  const notFound = jsonError(404, 'File not found');
 
   if (!isValidKey(key)) return notFound;
 
@@ -47,7 +48,6 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Failed to serve file:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return errorResponse(error, 'Failed to serve file');
   }
 }

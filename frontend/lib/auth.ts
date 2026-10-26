@@ -4,37 +4,32 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { createRateLimiter, tooManyAttemptsMessage } from '@/lib/rate-limit';
 import { BACKEND_URL } from '@/lib/backend-url';
 
-// Extend NextAuth types to include custom fields
+export type Role = 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+
 declare module 'next-auth' {
   interface Session {
     user: {
       id: string;
       email: string;
-      role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+      role: Role;
       name?: string | null;
       image?: string | null;
-      phone?: string | null;
-      department?: string | null;
     };
   }
   interface User {
     id: string;
     email: string;
-    role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+    role: Role;
     name?: string;
     image?: string | null;
-    phone?: string;
-    department?: string;
   }
 }
 
 declare module 'next-auth/jwt' {
   interface JWT {
     id: string;
-    role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE';
+    role: Role;
     image?: string | null;
-    phone?: string;
-    department?: string;
   }
 }
 
@@ -45,13 +40,11 @@ export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       credentials: {
-        email: { label: 'Email', type: 'email', placeholder: 'john@example.com' },
+        email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials, req): Promise<User | null> {
-        if (!credentials?.email || !credentials?.password) {
-          return null;
-        }
+        if (!credentials?.email || !credentials?.password) return null;
 
         // Per-client limit on all attempts, against password spraying across many
         // accounts (the backend separately limits failures per email). Behind a reverse
@@ -69,13 +62,8 @@ export const authOptions: NextAuthOptions = {
         try {
           res = await fetch(`${BACKEND_URL}/api/auth/login`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              email: credentials.email,
-              password: credentials.password,
-            }),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: credentials.email, password: credentials.password }),
           });
         } catch (error) {
           console.error('Auth error:', error);
@@ -86,19 +74,10 @@ export const authOptions: NextAuthOptions = {
           const body = await res.json().catch(() => ({}));
           throw new Error(body.error || 'Too many failed attempts. Try again later.');
         }
-
-        if (!res.ok) {
-          return null;
-        }
+        if (!res.ok) return null;
 
         const user = await res.json();
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name || `${user.firstName} ${user.lastName}`,
-          role: user.role,
-          image: user.avatar ?? null,
-        };
+        return { id: user.id, email: user.email, name: user.name, role: user.role, image: user.avatar ?? null };
       },
     }),
   ],
@@ -110,9 +89,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
-        token.image = user.image || null;
-        token.phone = user.phone;
-        token.department = user.department;
+        token.image = user.image ?? null;
       }
       // useSession().update() from the profile page: accept display fields only.
       // id/role must never come from the client (the backend re-checks role anyway).
@@ -125,13 +102,9 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id;
-        session.user.role = token.role;
-        session.user.image = token.image || null;
-        session.user.phone = token.phone;
-        session.user.department = token.department;
-      }
+      session.user.id = token.id;
+      session.user.role = token.role;
+      session.user.image = token.image ?? null;
       return session;
     },
   },
@@ -144,8 +117,4 @@ export const authOptions: NextAuthOptions = {
 
 const handler = NextAuth(authOptions);
 
-export const GET = handler;
-export const POST = handler;
-
-// Export authOptions for use with getServerSession
-export default authOptions;
+export { handler as GET, handler as POST };

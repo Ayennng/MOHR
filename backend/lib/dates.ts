@@ -1,6 +1,6 @@
 import prisma from '@/lib/prisma';
 
-const SERVER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+export const SERVER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 export function isValidTimezone(timeZone: unknown): timeZone is string {
   if (typeof timeZone !== 'string' || !timeZone) return false;
@@ -18,8 +18,9 @@ export async function getCompanyTimezone() {
   return isValidTimezone(settings?.timezone) ? settings.timezone : SERVER_TIMEZONE;
 }
 
-export function defaultTimezone() {
-  return SERVER_TIMEZONE;
+/** Today's calendar date in the company timezone, as a `@db.Date` value. */
+export async function companyToday() {
+  return toDbDate(zonedDateString(new Date(), await getCompanyTimezone()));
 }
 
 function zonedParts(date: Date, timeZone: string) {

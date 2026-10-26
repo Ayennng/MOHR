@@ -1,82 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { isLastActiveAdmin, withAuth } from '@/lib/rbac';
-import { isUniqueViolation } from '@/lib/employee';
-import { toDbDate } from '@/lib/dates';
-import { dateStringSchema, emailSchema, optionalTextSchema, parseJson } from '@/lib/validation';
+import { employeeDetailsSchema } from '@/lib/employee';
+import { ApiError, errorResponse, isUniqueViolation, jsonError } from '@/lib/http';
+import { fromDbDate, toDbDate } from '@/lib/dates';
+import { dateStringSchema, parseJson } from '@/lib/validation';
+import { assertNotDemoAccount } from '@/lib/demo';
 
-class LastAdminError extends Error {
-  constructor() {
-    super('At least one active admin is required');
-  }
+type Context = { params: Promise<{ id: string }> };
+
+const employeeSelect = {
+  id: true,
+  userId: true,
+  employeeId: true,
+  position: true,
+  hireDate: true,
+  status: true,
+  user: {
+    select: { email: true, firstName: true, lastName: true, department: true, phone: true },
+  },
+} as const satisfies Prisma.EmployeeSelect;
+
+const serialize = ({ hireDate, ...employee }: Prisma.EmployeeGetPayload<{ select: typeof employeeSelect }>) => ({
+  ...employee,
+  hireDate: fromDbDate(hireDate),
+});
+
+const notFound = () => jsonError(404, 'Employee not found');
+const lastAdmin = () => new ApiError(400, 'At least one active admin is required');
+
+/** The employee being changed by an admin; refuses demo accounts. */
+async function findEditable(id: string) {
+  const employee = await prisma.employee.findUnique({
+    where: { id },
+    select: { userId: true, user: { select: { email: true } } },
+  });
+  if (employee) assertNotDemoAccount(employee.user.email);
+  return employee;
 }
 
-const employeeInclude = {
-  user: {
-    select: {
-      email: true,
-      firstName: true,
-      lastName: true,
-      department: true,
-      phone: true,
-      role: true,
-      active: true,
-    },
-  },
-  leaveBalance: true,
-} as const;
-
 // GET /api/employees/:id - ADMIN/MANAGER can view anyone, employees only themselves
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(req: NextRequest, { params }: Context) {
   const { id } = await params;
   const authResult = await withAuth(req);
   if (authResult instanceof NextResponse) return authResult;
   const { user } = authResult;
 
   try {
-    const employee = await prisma.employee.findUnique({
-      where: { id },
-      include: employeeInclude,
-    });
+    const employee = await prisma.employee.findUnique({ where: { id }, select: employeeSelect });
 
     // 404 rather than 403 so employees can't probe which IDs exist
-    if (!employee || (user.role === 'EMPLOYEE' && employee.userId !== user.id)) {
-      return NextResponse.json(
-        { error: 'Employee not found' },
-        { status: 404 }
-      );
-    }
+    if (!employee || (user.role === 'EMPLOYEE' && employee.userId !== user.id)) return notFound();
 
-    return NextResponse.json(employee);
+    return NextResponse.json(serialize(employee));
   } catch (error) {
-    console.error(error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to fetch employee');
   }
 }
 
-const updateEmployeeSchema = z.object({
-  firstName: z.string().trim().min(1, 'First name is required').max(100),
-  lastName: z.string().trim().min(1, 'Last name is required').max(100),
-  email: emailSchema,
-  phone: optionalTextSchema,
-  department: optionalTextSchema,
-  position: z.string().trim().min(2, 'Position is required').max(100),
+const updateEmployeeSchema = employeeDetailsSchema.extend({
   hireDate: dateStringSchema,
   status: z.enum(['ACTIVE', 'INACTIVE', 'ON_LEAVE']),
 });
 
 // PUT /api/employees/:id - ADMIN only
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(req: NextRequest, { params }: Context) {
   const { id } = await params;
   const authResult = await withAuth(req, ['ADMIN']);
   if (authResult instanceof NextResponse) return authResult;
@@ -85,22 +75,15 @@ export async function PUT(
   if (data instanceof NextResponse) return data;
 
   try {
-    const existing = await prisma.employee.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
-    }
+    const existing = await findEditable(id);
+    if (!existing) return notFound();
 
     if (existing.userId === authResult.user.id && data.status === 'INACTIVE') {
-      return NextResponse.json(
-        { error: 'You cannot deactivate your own account' },
-        { status: 400 }
-      );
+      return jsonError(400, 'You cannot deactivate your own account');
     }
 
     const employee = await prisma.$transaction(async (tx) => {
-      if (data.status === 'INACTIVE' && (await isLastActiveAdmin(tx, existing.userId))) {
-        throw new LastAdminError();
-      }
+      if (data.status === 'INACTIVE' && (await isLastActiveAdmin(tx, existing.userId))) throw lastAdmin();
 
       return tx.employee.update({
         where: { id },
@@ -120,73 +103,43 @@ export async function PUT(
             },
           },
         },
-        include: employeeInclude,
+        select: employeeSelect,
       });
     });
 
-    return NextResponse.json(employee);
+    return NextResponse.json(serialize(employee));
   } catch (error) {
-    if (error instanceof LastAdminError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-    if (isUniqueViolation(error)) {
-      return NextResponse.json(
-        { error: 'Another user already has this email' },
-        { status: 409 }
-      );
-    }
-    console.error(error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    if (isUniqueViolation(error)) return jsonError(409, 'Another user already has this email');
+    return errorResponse(error, 'Failed to update employee');
   }
 }
 
 // DELETE /api/employees/:id - ADMIN only. Soft delete: the employee is marked
 // INACTIVE and can no longer sign in, but their leave and attendance history is kept.
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(req: NextRequest, { params }: Context) {
   const { id } = await params;
   const authResult = await withAuth(req, ['ADMIN']);
   if (authResult instanceof NextResponse) return authResult;
 
   try {
-    const existing = await prisma.employee.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json({ error: 'Employee not found' }, { status: 404 });
-    }
+    const existing = await findEditable(id);
+    if (!existing) return notFound();
 
     if (existing.userId === authResult.user.id) {
-      return NextResponse.json(
-        { error: 'You cannot deactivate your own account' },
-        { status: 400 }
-      );
+      return jsonError(400, 'You cannot deactivate your own account');
     }
 
     await prisma.$transaction(async (tx) => {
-      if (await isLastActiveAdmin(tx, existing.userId)) throw new LastAdminError();
+      if (await isLastActiveAdmin(tx, existing.userId)) throw lastAdmin();
 
       await tx.employee.update({
         where: { id },
-        data: {
-          status: 'INACTIVE',
-          user: { update: { active: false } },
-        },
+        data: { status: 'INACTIVE', user: { update: { active: false } } },
       });
     });
 
     return NextResponse.json({ message: 'Employee deactivated' });
   } catch (error) {
-    if (error instanceof LastAdminError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-    console.error(error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to deactivate employee');
   }
 }

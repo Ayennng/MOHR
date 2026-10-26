@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { withAuth } from '@/lib/rbac';
-import { isUniqueViolation } from '@/lib/employee';
+import { errorResponse, isUniqueViolation, jsonError } from '@/lib/http';
 import { parseJson } from '@/lib/validation';
 
+/** Amenities are stored as a JSON array in a text column. */
 function parseAmenities(amenities: string): string[] {
   try {
     const parsed = JSON.parse(amenities);
@@ -24,7 +25,13 @@ export async function GET(req: NextRequest) {
     const now = new Date();
     const rooms = await prisma.room.findMany({
       orderBy: { name: 'asc' },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        capacity: true,
+        location: true,
+        amenities: true,
+        status: true,
         // Only used to work out "in use now"; not returned
         bookings: {
           where: {
@@ -38,19 +45,15 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(
-      rooms.map(({ bookings, amenities, createdBy: _createdBy, ...room }) => ({
+      rooms.map(({ bookings, amenities, status, ...room }) => ({
         ...room,
         amenities: parseAmenities(amenities),
-        bookable: room.status === 'AVAILABLE',
+        bookable: status === 'AVAILABLE',
         inUseNow: bookings.length > 0,
       }))
     );
   } catch (error) {
-    console.error(error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to list rooms');
   }
 }
 
@@ -71,30 +74,23 @@ export async function POST(req: NextRequest) {
 
   try {
     const room = await prisma.room.create({
-      data: {
-        name: data.name,
-        capacity: data.capacity,
-        location: data.location,
-        amenities: JSON.stringify(data.amenities),
-        createdBy: authResult.user.id,
-      },
+      data: { ...data, amenities: JSON.stringify(data.amenities), createdBy: authResult.user.id },
     });
 
     return NextResponse.json(
-      { ...room, amenities: data.amenities, bookable: true, inUseNow: false },
+      {
+        id: room.id,
+        name: room.name,
+        capacity: room.capacity,
+        location: room.location,
+        amenities: data.amenities,
+        bookable: true,
+        inUseNow: false,
+      },
       { status: 201 }
     );
   } catch (error) {
-    if (isUniqueViolation(error)) {
-      return NextResponse.json(
-        { error: 'A room with this name already exists' },
-        { status: 409 }
-      );
-    }
-    console.error(error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    if (isUniqueViolation(error)) return jsonError(409, 'A room with this name already exists');
+    return errorResponse(error, 'Failed to create room');
   }
 }

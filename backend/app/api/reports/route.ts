@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { withAuth } from '@/lib/rbac';
-import { countWorkingDays, fromDbDate, getCompanyTimezone, toDbDate, zonedDateString } from '@/lib/dates';
+import { errorResponse, jsonError } from '@/lib/http';
+import { companyToday, countWorkingDays, fromDbDate } from '@/lib/dates';
 
 const PERIODS = ['week', 'month', 'quarter', 'year'] as const;
 type Period = (typeof PERIODS)[number];
@@ -37,16 +38,11 @@ export async function GET(req: NextRequest) {
   const authResult = await withAuth(req, ['ADMIN', 'MANAGER']);
   if (authResult instanceof NextResponse) return authResult;
 
-  const period = (new URL(req.url).searchParams.get('period') || 'month') as Period;
-  if (!PERIODS.includes(period)) {
-    return NextResponse.json(
-      { error: `period must be one of: ${PERIODS.join(', ')}` },
-      { status: 400 }
-    );
-  }
+  const period = (req.nextUrl.searchParams.get('period') || 'month') as Period;
+  if (!PERIODS.includes(period)) return jsonError(400, `period must be one of: ${PERIODS.join(', ')}`);
 
   try {
-    const today = toDbDate(zonedDateString(new Date(), await getCompanyTimezone()));
+    const today = await companyToday();
     const startDate = periodStart(today, period);
     const trendDays = lastWorkingDays(today, 5);
 
@@ -131,10 +127,6 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error fetching reports:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch reports' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to fetch reports');
   }
 }

@@ -37,6 +37,10 @@ services:
           type: web
           name: mohr-hr
           envVarKey: RENDER_EXTERNAL_URL
+      # Shows the one-click demo logins on the login page. Only for a demo database:
+      # .github/workflows/reset-demo.yml wipes and reseeds it nightly (see README)
+      - key: DEMO_MODE
+        value: "true"
       - fromGroup: mohr-shared
 
   # Public because free services can't receive private-network traffic; every

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import authOptions from '@/lib/auth';
+import { authOptions } from '@/lib/auth';
 import { BACKEND_URL } from '@/lib/backend-url';
 
 const MAX_BODY_BYTES = 6 * 1024 * 1024; // 5MB file + multipart overhead

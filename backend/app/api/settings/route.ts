@@ -1,53 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { withAuth } from '@/lib/rbac';
-import { z } from 'zod';
-import { defaultTimezone, isValidTimezone } from '@/lib/dates';
+import { errorResponse } from '@/lib/http';
+import { SERVER_TIMEZONE, isValidTimezone } from '@/lib/dates';
 import { parseJson } from '@/lib/validation';
 
-// GET /api/settings - Fetch settings
+const settingsSelect = {
+  companyName: true,
+  companyEmail: true,
+  companyAddress: true,
+  timezone: true,
+} as const;
+
+// GET /api/settings - company settings (ADMIN); the single row is created on first read
 export async function GET(req: NextRequest) {
   const authResult = await withAuth(req, ['ADMIN']);
   if (authResult instanceof NextResponse) return authResult;
 
   try {
-
-    // Get or create settings
-    let settings = await prisma.settings.findFirst();
-
-    if (!settings) {
-      // Create default settings if none exist
-      settings = await prisma.settings.create({
-        data: {
-          companyName: 'MoHR Systems',
-          companyEmail: 'admin@mohr.com',
-          companyAddress: '',
-          timezone: defaultTimezone(),
-          dateFormat: 'MM/DD/YYYY',
-          sessionTimeout: 30,
-          require2FA: false,
-          ipWhitelist: false,
-          notifyLeaveRequests: true,
-          notifyAttendanceAlert: true,
-          notifySystemUpdates: true,
-          notifyBirthdays: true,
-        },
-      });
-    }
-
+    const settings =
+      (await prisma.settings.findFirst({ select: settingsSelect })) ??
+      (await prisma.settings.create({ data: { timezone: SERVER_TIMEZONE }, select: settingsSelect }));
     return NextResponse.json(settings);
   } catch (error) {
-    console.error('Error fetching settings:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch settings' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to fetch settings');
   }
 }
 
-// Only settings the app actually uses can be changed. Security, notification and
-// date-format options are not implemented yet, so they are read-only in the UI and
-// ignored here (unknown keys are stripped by zod).
 const updateSettingsSchema = z.object({
   companyName: z.string().trim().min(1, 'Company name is required').max(200).optional(),
   companyEmail: z.string().trim().toLowerCase().pipe(z.email('Invalid company email')).optional(),
@@ -55,7 +35,7 @@ const updateSettingsSchema = z.object({
   timezone: z.string().refine(isValidTimezone, 'Invalid timezone').optional(),
 });
 
-// PUT /api/settings - Update settings
+// PUT /api/settings - update company settings (ADMIN)
 export async function PUT(req: NextRequest) {
   const authResult = await withAuth(req, ['ADMIN']);
   if (authResult instanceof NextResponse) return authResult;
@@ -64,21 +44,13 @@ export async function PUT(req: NextRequest) {
   if (data instanceof NextResponse) return data;
 
   try {
-    // Only one settings row exists; create it on first save
     const existing = await prisma.settings.findFirst({ select: { id: true } });
     const settings = existing
-      ? await prisma.settings.update({ where: { id: existing.id }, data })
-      : await prisma.settings.create({ data: { timezone: defaultTimezone(), ...data } });
+      ? await prisma.settings.update({ where: { id: existing.id }, data, select: settingsSelect })
+      : await prisma.settings.create({ data: { timezone: SERVER_TIMEZONE, ...data }, select: settingsSelect });
 
-    return NextResponse.json({
-      message: 'Settings updated successfully',
-      settings,
-    });
+    return NextResponse.json(settings);
   } catch (error) {
-    console.error('Error updating settings:', error);
-    return NextResponse.json(
-      { error: 'Failed to update settings' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to update settings');
   }
 }

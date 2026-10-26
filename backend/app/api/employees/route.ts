@@ -1,22 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { generateTemporaryPassword, hashPassword } from '@/lib/auth';
 import { withAuth } from '@/lib/rbac';
-import { createEmployeeRecord, isUniqueViolation } from '@/lib/employee';
+import { createEmployeeRecord, employeeDetailsSchema, findUserByEmail } from '@/lib/employee';
+import { errorResponse, isUniqueViolation, jsonError } from '@/lib/http';
 import { toDbDate } from '@/lib/dates';
-import { dateStringSchema, emailSchema, optionalTextSchema, parseJson } from '@/lib/validation';
+import { dateStringSchema, parseJson } from '@/lib/validation';
 
-const createEmployeeSchema = z.object({
-  firstName: z.string().trim().min(1, 'First name is required').max(100),
-  lastName: z.string().trim().min(1, 'Last name is required').max(100),
-  email: emailSchema,
-  phone: optionalTextSchema,
-  department: optionalTextSchema,
-  position: z.string().trim().min(2, 'Position is required').max(100),
+const createEmployeeSchema = employeeDetailsSchema.extend({
   hireDate: dateStringSchema.optional(),
 });
 
+const emailTaken = () => jsonError(409, 'User with this email already exists');
+
+// POST /api/employees - ADMIN creates an account and employee record
 export async function POST(req: NextRequest) {
   const authResult = await withAuth(req, ['ADMIN']);
   if (authResult instanceof NextResponse) return authResult;
@@ -25,28 +22,17 @@ export async function POST(req: NextRequest) {
   if (data instanceof NextResponse) return data;
 
   try {
-    // Older accounts may have mixed-case emails, so compare case-insensitively
-    const existingUser = await prisma.user.findFirst({
-      where: { email: { equals: data.email, mode: 'insensitive' } },
-    });
-
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'User with this email already exists' },
-        { status: 409 }
-      );
-    }
+    if (await findUserByEmail(data.email)) return emailTaken();
 
     // Each new account gets its own random password, shown to the admin once
     const temporaryPassword = generateTemporaryPassword();
-    const hashedPassword = await hashPassword(temporaryPassword);
+    const password = await hashPassword(temporaryPassword);
 
-    // Create user, employee record and leave balance together
     const employee = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           email: data.email,
-          password: hashedPassword,
+          password,
           firstName: data.firstName,
           lastName: data.lastName,
           department: data.department,
@@ -63,57 +49,35 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(
-      {
-        message: 'Employee created',
-        id: employee.id,
-        employeeId: employee.employeeId,
-        temporaryPassword,
-      },
+      { id: employee.id, employeeId: employee.employeeId, temporaryPassword },
       { status: 201 }
     );
   } catch (error) {
-    if (isUniqueViolation(error)) {
-      return NextResponse.json(
-        { error: 'User with this email already exists' },
-        { status: 409 }
-      );
-    }
-    console.error(error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    if (isUniqueViolation(error)) return emailTaken();
+    return errorResponse(error, 'Failed to create employee');
   }
 }
 
-// GET /api/employees - full directory incl. phone numbers and leave balances,
-// so ADMIN/MANAGER only (matches the sidebar, which hides Employees from others)
+// GET /api/employees - full directory incl. phone numbers, so ADMIN/MANAGER only
+// (matches the sidebar, which hides Employees from others)
 export async function GET(req: NextRequest) {
   const authResult = await withAuth(req, ['ADMIN', 'MANAGER']);
   if (authResult instanceof NextResponse) return authResult;
 
   try {
     const employees = await prisma.employee.findMany({
-      include: {
+      select: {
+        id: true,
+        employeeId: true,
+        position: true,
+        status: true,
         user: {
-          select: {
-            email: true,
-            firstName: true,
-            lastName: true,
-            department: true,
-            phone: true,
-          },
+          select: { email: true, firstName: true, lastName: true, department: true, phone: true },
         },
-        leaveBalance: true,
       },
     });
-
     return NextResponse.json(employees);
   } catch (error) {
-    console.error(error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to list employees');
   }
 }

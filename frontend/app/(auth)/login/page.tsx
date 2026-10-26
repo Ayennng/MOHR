@@ -1,17 +1,17 @@
-import { AuthHeroLayout } from '@/components/auth/auth-hero-layout';
+import { AuthHero } from '@/components/auth/auth-hero';
 import { LoginForm } from '@/components/auth/login-form';
-import { HeroBackground } from '@/components/auth/hero-background';
 
 export const metadata = {
   title: 'Sign In | MoHR',
   description: 'Sign in to your MoHR account',
 };
 
-export default function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ registered?: string }> }) {
+  const { registered } = await searchParams;
+
   return (
-    <AuthHeroLayout
-      formChild={<LoginForm />}
-      illustrationChild={<HeroBackground type="login" />}
-    />
+    <AuthHero title="Welcome Back" subtitle="Manage your HR efficiently with our modern system designed for growth.">
+      <LoginForm showDemo={process.env.DEMO_MODE === 'true'} registered={registered === 'true'} />
+    </AuthHero>
   );
 }

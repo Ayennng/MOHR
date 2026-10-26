@@ -2,6 +2,10 @@
 
 **MOHR (Modern HR)** is an HR management system for employee records, leave requests, attendance, meeting-room booking and reporting, built as two Next.js apps (a UI and an API) over PostgreSQL.
 
+[![CI](https://github.com/Ayennng/MOHR/actions/workflows/ci.yml/badge.svg)](https://github.com/Ayennng/MOHR/actions/workflows/ci.yml)
+
+**Live demo:** [mohr-hr.onrender.com](https://mohr-hr.onrender.com). Pick **Admin**, **Manager** or **Employee** on the login page to sign in to a sample company; the data resets every night. On weekdays from 08:00 to 22:00 Malaysia time it's kept awake; outside those hours the first visit takes about a minute.
+
 **Theme**: Moss Growth 🌿 - a nature-inspired design for modern HR management.
 
 ---
@@ -55,7 +59,7 @@ Browser ──► frontend (3000) ──► backend (3001) ──► PostgreSQL
             /api/* proxy routes   every route calls withAuth()
 ```
 
-- The browser only talks to the **frontend**. Its `/api/*` routes are thin proxies (`frontend/lib/proxy.ts`) that forward the request with the user's **session cookie only**.
+- The browser only talks to the **frontend**. A single catch-all route (`frontend/app/api/[...path]/route.ts`, using `lib/proxy.ts`) forwards each `/api/*` request to the same backend path with the user's **session cookie only**.
 - The **backend** decodes that cookie itself (both apps share `NEXTAUTH_SECRET`) and **reloads the user from the database on every request** (`backend/lib/rbac.ts`). Deactivating someone or changing their role takes effect immediately.
 - The backend never trusts identity headers. Only `/api/auth/login` and `/api/auth/register` are public.
 - Uploaded files are stored in the database and served only through `/api/files/...` after an access check. Leave attachments are visible only to the requester, managers and admins.
@@ -136,16 +140,16 @@ MOHR/
 │   │   ├── (app)/        # Signed-in pages sharing one layout (header + sidebar): dashboard, attendance,
 │   │   │                 # leave, employees, rooms, reports, settings, profile. The group name isn't in the URL.
 │   │   ├── (auth)/       # Login and register
-│   │   └── api/          # Proxy routes to the backend (one-liners using lib/proxy.ts)
-│   ├── components/       # UI library (components/ui), sidebar/header, feature components
-│   ├── lib/              # NextAuth config (auth.ts), proxy helper, login rate limiter
+│   │   └── api/          # NextAuth, register, health, and [...path]: the proxy to the backend
+│   ├── components/       # UI kit (components/ui: buttons, cards, tables, fields, ...), shell, feature components
+│   ├── lib/              # NextAuth config, proxy, api() + useApi() fetch helpers, formatting, sorting
 │   └── proxy.ts          # Redirects signed-out visitors to /login
 │
 └── backend/
     ├── app/api/          # API routes (see backend/BACKEND_DOCUMENTATION.md)
-    ├── lib/              # rbac (auth), employee, dates (timezone), uploads, validation, pagination, rate-limit
+    ├── lib/              # rbac (auth), http (errors), employee, leave, dates (timezone), uploads, validation, ...
     ├── prisma/           # Schema and migrations
-    ├── scripts/          # make-admin.mjs
+    ├── scripts/          # make-admin.mjs, reset-demo.mjs (+ demo-data.mjs)
     └── tests/            # Vitest unit tests
 ```
 
@@ -158,8 +162,9 @@ MOHR/
 | `npm run dev` | Dev server on :3000 | Dev server on :3001 |
 | `npm run build` / `start` | Production build / server | Production build / server on :3001 |
 | `npm run lint` | ESLint | — |
-| `npm run typecheck` | — | `tsc --noEmit` |
+| `npm run typecheck` | `tsc --noEmit` | `tsc --noEmit` |
 | `npm test` | — | Unit tests (Vitest) |
+| `node scripts/reset-demo.mjs --yes` | — | **Wipes the database** and loads the demo company |
 
 ---
 
@@ -177,6 +182,8 @@ After adding a custom domain, set the frontend's `NEXTAUTH_URL` to it.
 
 **Keeping it awake.** Point a free uptime pinger (e.g. [cron-job.org](https://cron-job.org)) at the frontend's `/api/health` every 10 minutes. That route also calls the backend's `/api/health`, so one job keeps both services up; neither touches the database. Render gives a workspace 750 free instance hours a month, and two services awake around the clock would need about 1,490, so limit the pings to working hours: weekdays 08:00–22:00 Malaysia time uses about 650. Outside those hours the services sleep, and the login page wakes the backend in the background while the visitor types.
 
+**Demo mode.** With `DEMO_MODE=true` on the frontend (set in `render.yaml`), the login page offers one-click sign-in to three shared accounts (`demo.admin`, `demo.manager` and `demo.employee` `@example.com`, password `Demo1234`). The API refuses password, profile and avatar changes for them, as well as role or status changes to them, so one visitor can't lock out the next. [`.github/workflows/reset-demo.yml`](.github/workflows/reset-demo.yml) wipes the database and reloads the sample company at 00:30 Malaysia time each night: add the Neon connection string as the `DEMO_DATABASE_URL` repository secret, then run the workflow once from the **Actions** tab. Only use this on a database that holds nothing but demo data. GitHub pauses scheduled workflows after 60 days without commits; re-enable it from the Actions tab if that happens. For a real company, leave `DEMO_MODE` unset and don't add the secret.
+
 ### Any host
 
 - **Prefer exposing only the frontend.** The backend enforces auth on every route, but if your host has a private network, keep it there.
@@ -190,6 +197,14 @@ After adding a custom domain, set the frontend's `NEXTAUTH_URL` to it.
 ## 📚 More documentation
 
 - [Backend API reference](backend/BACKEND_DOCUMENTATION.md)
+
+## 🧭 Design decisions
+
+- **Employees are never deleted.** Deactivating sets the employee `INACTIVE` and blocks sign-in; leave and attendance history stays.
+- **Leave balances reset in place each year** (one row per employee, no carry-over). Days are counted Mon–Fri; public holidays aren't excluded.
+- **The backend authenticates by decoding the frontend's NextAuth cookie** (shared `NEXTAUTH_SECRET`) and reloads the user from the database on every request.
+- **One company timezone** (`Settings.timezone`) decides "today", the 09:30 late cut-off and booking times.
+- **Not built yet:** employees cancelling their own pending leave (the `CANCELLED` status exists but nothing sets it), cancelling room bookings, public holidays, notifications, 2FA.
 
 ---
 

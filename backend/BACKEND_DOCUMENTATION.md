@@ -4,9 +4,9 @@ The backend is a Next.js app serving only API routes on port 3001. The browser n
 
 ## Conventions
 
-- **Authentication.** Every route except `POST /api/auth/login` and `POST /api/auth/register` calls `withAuth()` (`lib/rbac.ts`). It decodes the session cookie and reloads the user from the database. Unknown, deactivated or signed-out users get `401`; a role that isn't allowed gets `403`.
+- **Authentication.** Every route except `POST /api/auth/login`, `POST /api/auth/register` and `GET /api/health` calls `withAuth()` (`lib/rbac.ts`). It decodes the session cookie and reloads the user from the database. Unknown, deactivated or signed-out users get `401`; a role that isn't allowed gets `403`.
 - **Roles.** `ADMIN`, `MANAGER`, `EMPLOYEE`. "Any" below means any signed-in, active user.
-- **Errors.** Every error body is `{ "error": "<message>" }`, plus `"field"` for validation errors. Messages are safe to show to users. Status codes used: `400` invalid input, `401`, `403`, `404`, `409` conflict, `413` body too large, `429` rate limited (with `Retry-After`), `500` unexpected.
+- **Errors.** Every error body is `{ "error": "<message>" }`, plus `"field"` for validation errors. Messages are safe to show to users. Routes build them with `lib/http.ts`: `jsonError()` for a direct reply, `throw new ApiError(status, message)` to abort (including inside a transaction), and `errorResponse()` in the `catch`, which logs anything unexpected and answers a generic `500`. Status codes used: `400` invalid input, `401`, `403`, `404`, `409` conflict, `413` body too large, `429` rate limited (with `Retry-After`), `500` unexpected.
 - **Dates.** Calendar dates are `YYYY-MM-DD`. Times of day (`HH:MM`) and "today" are in the company timezone (`Settings.timezone`, see `lib/dates.ts`). Timestamps are ISO-8601 UTC.
 - **Validation.** JSON bodies are parsed with zod via `parseJson()` (`lib/validation.ts`); unknown keys are ignored.
 
@@ -14,7 +14,7 @@ The backend is a Next.js app serving only API routes on port 3001. The browser n
 
 | Method & path | Access | Body → Response |
 |---|---|---|
-| `POST /api/auth/login` | Public (called by the frontend's NextAuth `authorize()`) | `{ email, password }` → user profile. Every failure returns `401 "Invalid credentials"` (unknown email, wrong password and deactivated account look the same). Locked for 15 min after 5 failures per email → `429`. |
+| `POST /api/auth/login` | Public (called by the frontend's NextAuth `authorize()`) | `{ email, password }` → `{ id, email, name, role, avatar }`. Every failure returns `401 "Invalid credentials"` (unknown email, wrong password and deactivated account look the same). Locked for 15 min after 5 failures per email → `429`. |
 | `POST /api/auth/register` | Public | `{ email, password, firstName, lastName, position?, department?, phone? }` → `201 { user }`. Always creates an `EMPLOYEE`, with an employee record and leave balance. Email taken (case-insensitive) → `409`. |
 
 Password policy (`passwordSchema`): 8–72 characters, at least one letter and one number. Emails are stored trimmed and lower-cased.
@@ -42,9 +42,9 @@ Accounts are created with `POST /api/employees` and are never hard-deleted.
 
 | Method & path | Access | Body → Response |
 |---|---|---|
-| `GET /api/employees` | ADMIN, MANAGER | All employees with user details and leave balance |
+| `GET /api/employees` | ADMIN, MANAGER | All employees with user details (name, email, phone, department) |
 | `POST /api/employees` | ADMIN | `{ firstName, lastName, email, position, phone?, department?, hireDate? }` → `201 { id, employeeId, temporaryPassword }`. The temporary password is returned only once. |
-| `GET /api/employees/:id` | Self, ADMIN, MANAGER | Employee + user + leave balance (others get `404`) |
+| `GET /api/employees/:id` | Self, ADMIN, MANAGER | Employee + user details, `hireDate` as `YYYY-MM-DD` (others get `404`) |
 | `PUT /api/employees/:id` | ADMIN | `{ firstName, lastName, email, phone, department, position, hireDate, status }`. `status: "INACTIVE"` also disables sign-in. |
 | `DELETE /api/employees/:id` | ADMIN | Soft delete: status `INACTIVE` and sign-in disabled; history is kept |
 
@@ -81,20 +81,17 @@ Employee IDs (`EMP0001`, …) are the highest existing number + 1, generated und
 |---|---|---|
 | `GET /api/rooms` | Any | Rooms with `amenities[]`, `bookable`, `inUseNow` (other people's bookings are not included) |
 | `POST /api/rooms` | ADMIN | `{ name, capacity, location, amenities?: string[] }`. Duplicate name → `409`. |
-| `GET /api/rooms/availability?date=&startTime=&endTime=` | Any | Bookable rooms free for that slot |
 | `POST /api/rooms/book` | Any | `{ roomId, date, startTime, endTime, purpose }`. Times are `HH:MM` company time; the booking must be in the future; overlap → `409` (checked under a per-room lock). |
-| `GET /api/bookings` | Any | Own upcoming/in-progress bookings |
+| `GET /api/bookings` | Any | Own upcoming/in-progress bookings (cancelled ones left out) |
 
 ## Dashboard, reports, settings
 
 | Method & path | Access | Response |
 |---|---|---|
 | `GET /api/dashboard/stats` | Any | `{ totalEmployees, presentToday, onLeaveToday, absentToday, pendingLeaves, myBookingsToday }`. `pendingLeaves` is company-wide for approvers and your own otherwise. |
-| `GET /api/dashboard/attendance-summary?month=&year=` | ADMIN, MANAGER | Attendance counts by status for a month |
-| `GET /api/dashboard/leave-summary` | ADMIN, MANAGER | Leave counts by status |
 | `GET /api/reports?period=week\|month\|quarter\|year` | ADMIN, MANAGER | Metrics, departments, 5-working-day trend, leave stats |
-| `GET /api/settings` | ADMIN | Settings row (created on first read) |
-| `PUT /api/settings` | ADMIN | `{ companyName?, companyEmail?, companyAddress?, timezone? }` (IANA timezone). Security, notification and date-format fields exist in the schema but aren't implemented, so they can't be changed. |
+| `GET /api/settings` | ADMIN | `{ companyName, companyEmail, companyAddress, timezone }` (the single row is created on first read) |
+| `PUT /api/settings` | ADMIN | Any of those fields; `timezone` must be an IANA name such as `Asia/Kuala_Lumpur` |
 
 ## Files
 
@@ -110,7 +107,10 @@ Files are stored in the database (`Upload` table, keyed by `<folder>/<name>`), s
 | Module | Purpose |
 |---|---|
 | `rbac.ts` | `withAuth(req, roles?)`, `isLastActiveAdmin()` |
-| `employee.ts` | Employee creation/ID generation, leave balance (incl. yearly reset), balance helpers |
+| `http.ts` | `jsonError()`, `ApiError`, `errorResponse()`, `isUniqueViolation()` |
+| `employee.ts` | Employee creation/ID generation, `ensureEmployee()`, `findUserByEmail()`, shared employee fields schema |
+| `leave.ts` | Leave balances (incl. yearly reset), balance fields per type, `serializeLeave()` |
+| `demo.ts` | The shared demo logins and `assertNotDemoAccount()` |
 | `dates.ts` | Company timezone, wall-clock ↔ UTC conversion, working-day count, `@db.Date` helpers |
 | `uploads.ts` | Private file storage (in the database), content-type detection |
 | `validation.ts` | zod schemas (`emailSchema`, `passwordSchema`, …), `parseJson()`, `rejectIfTooLarge()` |
@@ -122,5 +122,6 @@ Files are stored in the database (`Upload` table, keyed by `<folder>/<name>`), s
 ## Scripts and tests
 
 - `node scripts/make-admin.mjs <email>`: promote an account to admin (first-admin bootstrap).
-- `npm test`: unit tests in `tests/` (dates/timezones, working days, file detection, validation, pagination, rate limiting).
+- `node scripts/reset-demo.mjs --yes`: **wipe the database** and load the demo company (`scripts/demo-data.mjs`).
+- `npm test`: unit tests in `tests/` (dates/timezones, working days, file detection, validation, pagination, rate limiting, error responses, demo data).
 - `npm run typecheck`: TypeScript check.

@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { Attendance } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { withAuth } from '@/lib/rbac';
+import { errorResponse, jsonError } from '@/lib/http';
 import { fromDbDate, getCompanyTimezone, toDbDate, zonedDateString } from '@/lib/dates';
 
 function serialize(record: Attendance) {
   return {
-    ...record,
+    id: record.id,
     date: fromDbDate(record.date),
     checkInTime: record.checkInTime?.toISOString() ?? null,
     checkOutTime: record.checkOutTime?.toISOString() ?? null,
+    status: record.status,
     // Worked minutes, once checked out
     duration:
       record.checkInTime && record.checkOutTime
@@ -25,25 +27,24 @@ function serialize(record: Attendance) {
 export async function GET(req: NextRequest) {
   const authResult = await withAuth(req);
   if (authResult instanceof NextResponse) return authResult;
-  const userId = authResult.user.id;
 
   try {
     const today = zonedDateString(new Date(), await getCompanyTimezone());
     const [currentYear, currentMonth] = today.split('-').map(Number);
 
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = req.nextUrl;
     const month = searchParams.has('month') ? Number(searchParams.get('month')) : currentMonth;
     const year = searchParams.has('year') ? Number(searchParams.get('year')) : currentYear;
 
     if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year) || year < 1970 || year > 9999) {
-      return NextResponse.json({ error: 'Invalid month or year' }, { status: 400 });
+      return jsonError(400, 'Invalid month or year');
     }
 
     const monthKey = `${year}-${String(month).padStart(2, '0')}`;
     const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
 
     const employee = await prisma.employee.findUnique({
-      where: { userId },
+      where: { userId: authResult.user.id },
       select: { id: true },
     });
 
@@ -56,10 +57,7 @@ export async function GET(req: NextRequest) {
       prisma.attendance.findMany({
         where: {
           employeeId: employee.id,
-          date: {
-            gte: toDbDate(`${monthKey}-01`),
-            lte: toDbDate(`${monthKey}-${String(lastDay).padStart(2, '0')}`),
-          },
+          date: { gte: toDbDate(`${monthKey}-01`), lte: toDbDate(`${monthKey}-${lastDay}`) },
         },
         orderBy: { date: 'desc' },
       }),
@@ -75,10 +73,6 @@ export async function GET(req: NextRequest) {
       records: records.map(serialize),
     });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to fetch attendance');
   }
 }

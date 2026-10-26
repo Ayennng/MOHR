@@ -1,35 +1,19 @@
 import { Prisma } from '@prisma/client';
+import { z } from 'zod';
 import prisma from '@/lib/prisma';
+import { isUniqueViolation } from '@/lib/http';
+import { DEFAULT_LEAVE_ALLOWANCE } from '@/lib/leave';
+import { emailSchema, optionalTextSchema } from '@/lib/validation';
 
-export const DEFAULT_LEAVE_ALLOWANCE = {
-  vacationDays: 20,
-  sickDays: 10,
-  personalDays: 5,
-};
-
-/** LeaveBalance columns per leave type; other types (UNPAID, ...) don't use a balance. */
-export const BALANCE_FIELDS = {
-  VACATION: { total: 'vacationDays', used: 'usedVacation' },
-  SICK: { total: 'sickDays', used: 'usedSick' },
-  PERSONAL: { total: 'personalDays', used: 'usedPersonal' },
-} as const;
-
-/** Days left for `leaveType`, or null if the type isn't limited by a balance. */
-export function remainingLeaveDays(
-  balance: Prisma.LeaveBalanceGetPayload<object>,
-  leaveType: string
-) {
-  if (!(leaveType in BALANCE_FIELDS)) return null;
-  const fields = BALANCE_FIELDS[leaveType as keyof typeof BALANCE_FIELDS];
-  return balance[fields.total] - balance[fields.used];
-}
-
-export function isUniqueViolation(error: unknown) {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === 'P2002'
-  );
-}
+/** Fields an admin sets when adding or editing an employee. */
+export const employeeDetailsSchema = z.object({
+  firstName: z.string().trim().min(1, 'First name is required').max(100),
+  lastName: z.string().trim().min(1, 'Last name is required').max(100),
+  email: emailSchema,
+  phone: optionalTextSchema,
+  department: optionalTextSchema,
+  position: z.string().trim().min(2, 'Position is required').max(100),
+});
 
 export function formatEmployeeId(n: number) {
   return `EMP${String(n).padStart(4, '0')}`;
@@ -91,27 +75,7 @@ export async function ensureEmployee(user: { id: string; department: string | nu
   }
 }
 
-/**
- * Returns the employee's leave balance for the current year. The schema keeps one
- * balance row per employee, so on the first access in a new year the used-day
- * counters are reset in place.
- */
-export async function getLeaveBalance(
-  employeeId: string,
-  db: Prisma.TransactionClient | typeof prisma = prisma
-) {
-  const year = new Date().getFullYear();
-
-  const balance = await db.leaveBalance.upsert({
-    where: { employeeId },
-    create: { employeeId, year, ...DEFAULT_LEAVE_ALLOWANCE },
-    update: {},
-  });
-
-  if (balance.year === year) return balance;
-
-  return db.leaveBalance.update({
-    where: { employeeId },
-    data: { year, usedVacation: 0, usedSick: 0, usedPersonal: 0 },
-  });
+/** Case-insensitive, because older accounts may have been stored with mixed-case emails. */
+export function findUserByEmail(email: string) {
+  return prisma.user.findFirst({ where: { email: { equals: email, mode: 'insensitive' } } });
 }

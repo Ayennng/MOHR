@@ -1,184 +1,95 @@
+/* eslint-disable @next/next/no-img-element -- previews are data: URLs and avatars come from our authenticated /api/files route */
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, X, Camera } from 'lucide-react';
+import { api } from '@/lib/api';
+import { Alert, Spinner } from '@/components/ui';
 
-interface AvatarUploadProps {
+const MAX_BYTES = 5 * 1024 * 1024;
+
+/** Drop zone that uploads a new profile picture, plus a remove button. Reports the new avatar URL (or null). */
+export default function AvatarUpload({
+  currentAvatar,
+  onChange,
+}: {
   currentAvatar?: string | null;
-  onUploadSuccess: (avatarUrl: string) => void;
-  onRemove?: () => void;
-}
-
-export default function AvatarUpload({ currentAvatar, onUploadSuccess, onRemove }: AvatarUploadProps) {
+  onChange: (avatar: string | null) => void;
+}) {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Retry upload with exponential backoff
-  const uploadWithRetry = useCallback(
-    async (file: File, attempt = 1): Promise<any> => {
-      try {
-        const formData = new FormData();
-        formData.append('avatar', file);
+  const run = async (action: () => Promise<string | null>) => {
+    setUploading(true);
+    setError(null);
+    try {
+      onChange(await action());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+    } finally {
+      setUploading(false);
+      setPreview(null);
+    }
+  };
 
-        const response = await fetch('/api/users/avatar', {
-          method: 'POST',
-          body: formData,
-        });
+  const upload = (file: File) => {
+    if (file.size > MAX_BYTES) return setError('File size exceeds 5MB limit');
 
-        if (!response.ok) {
-          const error = await response.json();
-          throw { response: { status: response.status, data: error } };
-        }
+    const reader = new FileReader();
+    reader.onload = () => setPreview(reader.result as string);
+    reader.readAsDataURL(file);
 
-        return await response.json();
-      } catch (error: any) {
-        // Don't retry on 4xx errors (validation, auth, etc.)
-        if (error.response?.status >= 400 && error.response?.status < 500) {
-          throw error;
-        }
+    const formData = new FormData();
+    formData.append('avatar', file);
+    run(async () => (await api<{ avatar: string }>('/api/users/avatar', { method: 'POST', body: formData })).avatar);
+  };
 
-        // Retry on 5xx or network errors (up to 3 attempts)
-        if (attempt < 3) {
-          // Exponential backoff: 1s, 2s, 4s
-          const delayMs = Math.pow(2, attempt - 1) * 1000;
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
-          return uploadWithRetry(file, attempt + 1);
-        }
-
-        throw error;
-      }
-    },
-    []
-  );
-
-  const onDrop = useCallback(
-    async (acceptedFiles: File[]) => {
-      const file = acceptedFiles[0];
-      if (!file) return;
-
-      // Validate file size (5MB max)
-      const maxSize = 5 * 1024 * 1024;
-      if (file.size > maxSize) {
-        setError('File size exceeds 5MB limit');
-        return;
-      }
-
-      // Show preview
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-
-      // Upload file
-      try {
-        setUploading(true);
-        setError(null);
-
-        const data = await uploadWithRetry(file);
-        onUploadSuccess(data.avatar);
-        setPreview(null);
-      } catch (err: any) {
-        const errorMessage = err.response?.data?.error || (err instanceof Error ? err.message : 'Upload failed');
-        setError(errorMessage);
-        setPreview(null);
-      } finally {
-        setUploading(false);
-      }
-    },
-    [onUploadSuccess, uploadWithRetry]
-  );
+  const remove = () => run(async () => (await api('/api/users/avatar', { method: 'DELETE' }), null));
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'image/jpeg': ['.jpg', '.jpeg'],
-      'image/png': ['.png'],
-      'image/webp': ['.webp'],
-    },
+    onDrop: ([file]) => file && upload(file),
+    accept: { 'image/jpeg': ['.jpg', '.jpeg'], 'image/png': ['.png'], 'image/webp': ['.webp'] },
     maxFiles: 1,
     disabled: uploading,
   });
 
-  const handleRemove = async () => {
-    if (!onRemove) return;
-
-    try {
-      setUploading(true);
-      setError(null);
-
-      const response = await fetch('/api/users/avatar', { method: 'DELETE' });
-      if (!response.ok) {
-        throw new Error('Failed to remove avatar');
-      }
-      onRemove();
-    } catch (err: any) {
-      const errorMessage = err instanceof Error ? err.message : 'Remove failed';
-      setError(errorMessage);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const displayAvatar = preview || currentAvatar;
+  const shown = preview || currentAvatar;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-6">
-        {/* Avatar Preview */}
-        <div className="relative">
-          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-moss-200 bg-moss-100 flex items-center justify-center">
-            {displayAvatar ? (
-              <img
-                src={displayAvatar}
-                alt="Profile"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <Camera size={48} className="text-moss-400" />
-            )}
-          </div>
+      <div className="flex flex-col sm:flex-row items-center gap-6">
+        <div className="relative w-32 h-32 shrink-0 rounded-full overflow-hidden border-4 border-moss-200 bg-moss-100 flex items-center justify-center">
+          {shown ? <img src={shown} alt="Profile" className="w-full h-full object-cover" /> : <Camera size={48} className="text-moss-400" />}
           {uploading && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white">
+              <Spinner />
             </div>
           )}
         </div>
 
-        {/* Upload Area */}
-        <div className="flex-1">
+        <div className="flex-1 w-full">
           <div
             {...getRootProps()}
             className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
-              isDragActive
-                ? 'border-moss-500 bg-moss-50'
-                : 'border-moss-300 hover:border-moss-400 hover:bg-moss-50'
+              isDragActive ? 'border-moss-500 bg-moss-50' : 'border-moss-300 hover:border-moss-400 hover:bg-moss-50'
             } ${uploading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <input {...getInputProps()} />
             <Upload size={32} className="mx-auto mb-2 text-moss-600" />
-            {isDragActive ? (
-              <p className="text-moss-700 font-medium">Drop image here...</p>
-            ) : (
-              <div>
-                <p className="text-moss-900 font-semibold mb-1">
-                  Click to upload or drag and drop
-                </p>
-                <p className="text-sm text-moss-600">
-                  JPEG, PNG or WebP (max 5MB)
-                </p>
-              </div>
-            )}
+            <p className="text-moss-900 font-semibold mb-1">
+              {isDragActive ? 'Drop image here...' : 'Click to upload or drag and drop'}
+            </p>
+            <p className="text-sm text-moss-600">JPEG, PNG or WebP (max 5MB)</p>
           </div>
 
-          {/* Remove Button */}
-          {currentAvatar && !preview && onRemove && (
+          {currentAvatar && !preview && (
             <button
-              onClick={handleRemove}
+              type="button"
+              onClick={remove}
               disabled={uploading}
-              className="mt-3 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="mt-3 px-4 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <X size={16} />
               Remove Picture
@@ -187,13 +98,7 @@ export default function AvatarUpload({ currentAvatar, onUploadSuccess, onRemove 
         </div>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
-          <p className="font-semibold">Error</p>
-          <p>{error}</p>
-        </div>
-      )}
+      <Alert>{error}</Alert>
     </div>
   );
 }

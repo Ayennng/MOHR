@@ -4,46 +4,8 @@
 @source "../app";
 @source "../components";
 
-:root {
-  /* Moss Growth Theme - Light Mode */
-  --background: #f5f3f0;
-  --foreground: #2c3e50;
-
-  /* Moss Growth Colors */
-  --moss-primary: #4a7c59;
-  --moss-secondary: #9caf88;
-  --moss-accent: #f5f3f0;
-  --moss-dark-slate: #2c3e50;
-  --moss-light-mint: #e8f1ed;
-
-  /* Status Colors */
-  --moss-success: #2d5016;
-  --moss-warning: #d4a574;
-  --moss-error: #c85450;
-
-  /* Neutral Colors */
-  --moss-neutral-50: #f9f8f7;
-  --moss-neutral-100: #f0ede9;
-  --moss-neutral-200: #e8e4df;
-  --moss-neutral-300: #d4cfc9;
-  --moss-neutral-500: #a39f99;
-  --moss-neutral-700: #666260;
-  --moss-neutral-900: #2c3e50;
-
-  /* Sage Colors */
-  --color-sage-50: #f7f9f7;
-  --color-sage-100: #e8ede8;
-  --color-sage-200: #d1dcd1;
-  --color-sage-500: #9caf88;
-  --color-sage-600: #7a9370;
-  --color-sage-700: #5c7157;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-
-  /* Tailwind color extensions */
+/* Moss Growth theme */
+@theme {
   --color-moss-50: #f9fdf9;
   --color-moss-100: #f0f8f2;
   --color-moss-200: #d4eae0;
@@ -54,20 +16,6 @@
   --color-moss-700: #2b5743;
   --color-moss-800: #1e4620;
   --color-moss-900: #142f15;
-
-  --color-cream: #f5f3f0;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #1a2a1f;
-    --foreground: #f0ede9;
-    --moss-light-mint: #2b5743;
-  }
-}
-
-* {
-  box-sizing: border-box;
 }
 
 html,
@@ -76,23 +24,15 @@ body {
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  background: #f5f3f0;
+  color: #2c3e50;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
+    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-#__next {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-/* Custom Animations */
+/* Used by auth-hero.css */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -104,57 +44,6 @@ body {
   }
 }
 
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes pulse-subtle {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
-}
-
-/* Utility Classes */
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-out;
-}
-
-.animate-slide-in {
-  animation: slideIn 0.5s ease-out;
-}
-
-.animate-pulse-subtle {
-  animation: pulse-subtle 2s ease-in-out infinite;
-}
-
-/* Glass Morphism */
-.glass-morphism {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -174,7 +63,7 @@ body {
   background: linear-gradient(180deg, #3d6847 0%, #2b5743 100%);
 }
 
-/* Smooth Transitions */
+/* Smooth colour and hover transitions everywhere */
 * {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);

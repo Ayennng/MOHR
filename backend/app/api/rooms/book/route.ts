@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '@/lib/prisma';
 import { withAuth } from '@/lib/rbac';
 import { ensureEmployee } from '@/lib/employee';
+import { ApiError, errorResponse, jsonError } from '@/lib/http';
 import { getCompanyTimezone, toDbDate, zonedTimeToUtc } from '@/lib/dates';
 import { dateStringSchema, parseJson } from '@/lib/validation';
 
@@ -22,8 +23,7 @@ const bookingSchema = z
     path: ['endTime'],
   });
 
-class BookingConflict extends Error {}
-
+// POST /api/rooms/book - book a room for a future time slot
 export async function POST(req: NextRequest) {
   const authResult = await withAuth(req);
   if (authResult instanceof NextResponse) return authResult;
@@ -36,19 +36,11 @@ export async function POST(req: NextRequest) {
     const startTime = zonedTimeToUtc(data.date, data.startTime, timeZone);
     const endTime = zonedTimeToUtc(data.date, data.endTime, timeZone);
 
-    if (startTime <= new Date()) {
-      return NextResponse.json(
-        { error: 'Bookings must start in the future' },
-        { status: 400 }
-      );
-    }
+    if (startTime <= new Date()) return jsonError(400, 'Bookings must start in the future');
 
     const room = await prisma.room.findUnique({ where: { id: data.roomId } });
     if (!room || room.status !== 'AVAILABLE') {
-      return NextResponse.json(
-        { error: 'Room not found or not available for booking' },
-        { status: 404 }
-      );
+      return jsonError(404, 'Room not found or not available for booking');
     }
 
     const employee = await ensureEmployee(authResult.user);
@@ -65,7 +57,7 @@ export async function POST(req: NextRequest) {
           status: { in: ['CONFIRMED', 'PENDING'] },
         },
       });
-      if (conflict) throw new BookingConflict();
+      if (conflict) throw new ApiError(409, 'Room is already booked for this time');
 
       return tx.roomBooking.create({
         data: {
@@ -77,22 +69,11 @@ export async function POST(req: NextRequest) {
           purpose: data.purpose,
           status: 'CONFIRMED',
         },
-        include: { room: { select: { name: true, location: true } } },
       });
     });
 
-    return NextResponse.json(booking, { status: 201 });
+    return NextResponse.json({ id: booking.id }, { status: 201 });
   } catch (error) {
-    if (error instanceof BookingConflict) {
-      return NextResponse.json(
-        { error: 'Room is already booked for this time' },
-        { status: 409 }
-      );
-    }
-    console.error(error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse(error, 'Failed to book room');
   }
 }
