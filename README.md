@@ -175,6 +175,8 @@ MOHR/
 
 After adding a custom domain, set the frontend's `NEXTAUTH_URL` to it.
 
+**Keeping it awake.** Point a free uptime pinger (e.g. [cron-job.org](https://cron-job.org)) at the frontend's `/api/health` every 10 minutes. That route also calls the backend's `/api/health`, so one job keeps both services up; neither touches the database. Render gives a workspace 750 free instance hours a month, and two services awake around the clock would need about 1,490, so limit the pings to working hours: weekdays 08:00–22:00 Malaysia time uses about 650. Outside those hours the services sleep, and the login page wakes the backend in the background while the visitor types.
+
 ### Any host
 
 - **Prefer exposing only the frontend.** The backend enforces auth on every route, but if your host has a private network, keep it there.

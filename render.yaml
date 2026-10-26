@@ -3,6 +3,8 @@
 # Both apps run on Render's free plan. The database is external (e.g. Neon's free
 # Postgres, which doesn't expire like Render's free one); uploads are stored in it.
 # Free services sleep after 15 minutes without traffic and take about a minute to wake.
+# An uptime pinger on the frontend's /api/health keeps both awake in working hours
+# (see README); pinging around the clock would exceed the 750 free hours a month.
 
 envVarGroups:
   - name: mohr-shared
@@ -48,6 +50,7 @@ services:
     # Free services have no pre-deploy step, so migrations run in the build
     buildCommand: npm ci --include=dev && npx prisma generate && npx prisma migrate deploy && npm run build
     startCommand: npx next start -p $PORT
+    healthCheckPath: /api/health
     envVars:
       # Paste the database's direct (non-pooled) connection string when prompted
       - key: DATABASE_URL

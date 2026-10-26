@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -23,6 +23,12 @@ export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Wake the backend while the user types, so a sleeping free instance doesn't
+  // add a second wait on submit
+  useEffect(() => {
+    fetch('/api/health', { cache: 'no-store' }).catch(() => {});
+  }, []);
 
   const {
     register,
