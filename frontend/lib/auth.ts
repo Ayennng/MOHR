@@ -74,7 +74,13 @@ export const authOptions: NextAuthOptions = {
           const body = await res.json().catch(() => ({}));
           throw new Error(body.error || 'Too many failed attempts. Try again later.');
         }
-        if (!res.ok) return null;
+        // Only a 401 means wrong credentials; anything else (e.g. Render's 502 while the
+        // backend wakes or redeploys) must not be reported as a wrong password
+        if (res.status === 401) return null;
+        if (!res.ok) {
+          console.error(`Auth error: backend login returned ${res.status}`);
+          throw new Error('Sign-in is temporarily unavailable. Please try again.');
+        }
 
         const user = await res.json();
         return { id: user.id, email: user.email, name: user.name, role: user.role, image: user.avatar ?? null };
