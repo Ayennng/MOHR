@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Alert, Button, inputClass } from '@/components/ui';
 import { FormField, PasswordInput } from './form-field';
 
 const loginSchema = z.object({
@@ -69,50 +70,55 @@ export function LoginForm({ showDemo = false, registered = false }: { showDemo?:
 
   return (
     <div>
-      <h1 className="auth-heading">Welcome Back !</h1>
-      <p className="auth-subheading">Sign in to your account to continue</p>
+      <h1 className="text-4xl font-bold text-mint-950">Sign in</h1>
+      <p className="mt-2 mb-8 text-mint-700">Sign in to your account to continue</p>
 
-      {registered && !error && <div className="success-message">Account created. Sign in to continue.</div>}
-      {error && <div className="error-message">{error}</div>}
+      <div className="mb-5 space-y-3 empty:hidden">
+        {registered && !error && <Alert tone="success">Account created. Sign in to continue.</Alert>}
+        <Alert>{error}</Alert>
+      </div>
 
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <FormField label="Email" error={errors.email?.message} required>
-          <input type="email" placeholder="your@email.com" className="form-input" autoComplete="email" {...register('email')} />
+          <input type="email" placeholder="your@email.com" className={inputClass} autoComplete="email" {...register('email')} />
         </FormField>
 
         <FormField label="Password" error={errors.password?.message} required>
           <PasswordInput placeholder="Enter your password" autoComplete="current-password" {...register('password')} />
         </FormField>
 
-        <button type="submit" disabled={isLoading} className={`btn btn-primary ${isLoading ? 'btn-loading' : ''}`}>
+        <Button type="submit" size="lg" isLoading={isLoading} className="w-full">
           {isLoading ? 'Signing in...' : 'Sign In'}
-        </button>
+        </Button>
       </form>
 
       {showDemo && (
-        <div className="demo-panel">
-          <p className="demo-panel-title">Just looking? Try the demo</p>
-          <div className="demo-panel-buttons">
+        <div className="mt-8 rounded-card border border-dashed border-mint-900/20 bg-mint-50 p-5">
+          <p className="mb-3 text-sm font-semibold text-mint-900">Just looking? Try the demo</p>
+          <div className="grid grid-cols-3 gap-2">
             {DEMO_ACCOUNTS.map((account) => (
-              <button
+              <Button
                 key={account.email}
-                type="button"
+                variant="outline"
+                size="sm"
                 disabled={isLoading}
-                className="btn demo-button"
                 onClick={() => onSubmit({ email: account.email, password: DEMO_PASSWORD })}
               >
                 {account.role}
-              </button>
+              </Button>
             ))}
           </div>
-          <p className="demo-panel-note">
+          <p className="mt-3 text-xs text-mint-700">
             Sample company data, reset every night. Password for all three: {DEMO_PASSWORD}
           </p>
         </div>
       )}
 
-      <div className="auth-link">
-        Don&apos;t have an account? <Link href="/register">Create one</Link>
+      <div className="mt-8 text-center text-sm text-mint-700">
+        Don&apos;t have an account?{' '}
+        <Link href="/register" className="font-semibold text-mint-900 underline decoration-mint-300 decoration-2 underline-offset-4 transition-colors hover:decoration-mint-600">
+          Create one
+        </Link>
       </div>
     </div>
   );

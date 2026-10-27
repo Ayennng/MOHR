@@ -56,12 +56,12 @@ export default function AttendanceConfirmationModal({
   return (
     <Modal isOpen onClose={() => (release(), onClose())} title={`${title} Confirmation`}>
       <div className="space-y-6">
-        <div className="p-4 bg-moss-50 rounded-2xl border-2 border-moss-100 text-center">
-          <p className="text-sm text-moss-600 font-semibold">Current Time</p>
-          <LiveClock className="text-2xl font-bold text-moss-900" />
+        <div className="rounded-2xl bg-mint-100 p-4 text-center">
+          <p className="text-sm text-mint-700 font-semibold">Current Time</p>
+          <LiveClock className="font-display text-3xl font-bold tabular-nums text-mint-950" />
         </div>
 
-        <p className="text-center text-moss-800">
+        <p className="text-center text-mint-800">
           {isCheckIn
             ? 'You are about to check in for today. This will record your arrival time.'
             : 'You are about to check out. This will end your work session for today.'}
@@ -72,11 +72,16 @@ export default function AttendanceConfirmationModal({
           onPointerDown={hold}
           onPointerUp={release}
           onPointerLeave={release}
-          className={`relative w-full py-4 rounded-2xl font-bold text-lg text-white overflow-hidden shadow-lg select-none transition-transform ${
-            heldSince ? 'scale-95' : ''
-          } ${isCheckIn ? 'bg-moss-600 hover:bg-moss-700' : 'bg-red-600 hover:bg-red-700'}`}
+          className={`relative w-full overflow-hidden rounded-full py-4 text-lg font-bold select-none touch-none transition-transform duration-200 ease-out-soft ${
+            heldSince ? 'scale-[0.97]' : ''
+          } ${isCheckIn ? 'bg-mint-900 text-mint-200' : 'bg-red-600 text-white'}`}
         >
-          <span className="absolute inset-y-0 left-0 bg-white/30" style={{ width: `${progress}%` }} />
+          {/* Fills left to right while held (scaleX, so no layout work per frame) */}
+          <span
+            aria-hidden
+            className={`absolute inset-0 origin-left ${isCheckIn ? 'bg-mint-200/25' : 'bg-white/25'}`}
+            style={{ transform: `scaleX(${progress / 100})` }}
+          />
           <span className="relative flex items-center justify-center gap-2">
             <Icon size={24} />
             {heldSince ? `Keep holding... ${Math.ceil(progress)}%` : `Hold for 2 seconds to ${title.toLowerCase()}`}

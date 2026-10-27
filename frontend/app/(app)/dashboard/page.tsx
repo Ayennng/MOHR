@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { Users, Calendar, Clock, DoorOpen, ArrowRight } from 'lucide-react';
+import { Users, Calendar, Clock, DoorOpen, ArrowRight, LogIn, CheckCircle2 } from 'lucide-react';
 import { useApi } from '@/lib/api';
+import { formatTime } from '@/lib/format';
 import { Alert, StatCard } from '@/components/ui';
 import { LiveClock } from '@/components/attendance/live-clock';
 
@@ -14,24 +15,43 @@ interface DashboardStats {
   myBookingsToday: number;
 }
 
+interface TodayAttendance {
+  todayRecord: { checkInTime: string | null; checkOutTime: string | null } | null;
+}
+
 const quickActions = [
-  {
-    href: '/leave/request',
-    title: 'Request Leave',
-    text: 'Submit a new leave request for approval',
-    cta: 'New Request',
-    icon: <Calendar size={32} />,
-    colors: 'from-moss-100 to-moss-200 text-moss-600',
-  },
-  {
-    href: '/attendance',
-    title: 'Attendance',
-    text: 'View attendance records and check in',
-    cta: 'View Attendance',
-    icon: <Clock size={32} />,
-    colors: 'from-emerald-100 to-emerald-200 text-emerald-600',
-  },
+  { href: '/leave/request', title: 'Request Leave', text: 'Submit a new leave request for approval', icon: <Calendar size={26} /> },
+  { href: '/attendance', title: 'Attendance', text: 'View your records and check in or out', icon: <Clock size={26} /> },
+  { href: '/rooms', title: 'Book a Room', text: 'Find a free meeting room and reserve it', icon: <DoorOpen size={26} /> },
 ];
+
+/** Where the signed-in user stands today: checked in, done, or not in yet. */
+function TodayStatus() {
+  const { data } = useApi<TodayAttendance>('/api/attendance');
+  const today = data?.todayRecord;
+
+  const [icon, title, detail] = !data
+    ? [<Clock key="i" size={22} />, 'Checking today...', ' ']
+    : today?.checkOutTime
+      ? [<CheckCircle2 key="i" size={22} />, 'Done for today', `Out at ${formatTime(today.checkOutTime)}`]
+      : today?.checkInTime
+        ? [<CheckCircle2 key="i" size={22} />, 'You are checked in', `Since ${formatTime(today.checkInTime)}`]
+        : [<LogIn key="i" size={22} />, 'Not checked in yet', 'Tap to check in'];
+
+  return (
+    <Link
+      href="/attendance"
+      className="group flex items-center gap-4 rounded-2xl bg-white/70 p-4 pr-5 shadow-soft transition-[transform,box-shadow,background-color] duration-200 ease-out-soft hover:-translate-y-0.5 hover:bg-white hover:shadow-lift"
+    >
+      <span className="grid size-11 place-items-center rounded-xl bg-mint-900 text-mint-200">{icon}</span>
+      <span>
+        <span className="block font-semibold text-mint-950">{title}</span>
+        <span className="block text-sm text-mint-800">{detail}</span>
+      </span>
+      <ArrowRight size={18} className="ml-auto text-mint-800 transition-transform duration-200 ease-out-soft group-hover:translate-x-1" />
+    </Link>
+  );
+}
 
 export default function DashboardPage() {
   const { data: session } = useSession();
@@ -39,65 +59,74 @@ export default function DashboardPage() {
   // The employee directory is only open to admins and managers
   const canViewEmployees = session?.user?.role === 'ADMIN' || session?.user?.role === 'MANAGER';
   const value = (n?: number) => (loading ? '…' : (n ?? 0));
+  const firstName = session?.user?.name?.split(' ')[0] || 'there';
 
   return (
     <>
-      <div className="rounded-3xl p-10 shadow-2xl bg-linear-to-br from-moss-500 to-moss-800 text-white">
-        <LiveClock format="date" className="inline-block px-4 py-2 mb-4 rounded-full bg-white/20 text-sm font-semibold" />
-        <h1 className="text-4xl md:text-5xl font-extrabold mb-3 tracking-tight">
-          Welcome back, {session?.user?.name || 'User'}!
-        </h1>
-        <p className="text-white/90 text-lg">Here&apos;s your HR overview for today</p>
-      </div>
+      <section className="relative overflow-hidden rounded-card bg-mint-200 p-8 md:p-10">
+        <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+            <LiveClock
+              format="date"
+              className="mb-5 inline-block rounded-full bg-mint-900 px-3.5 py-1.5 text-xs font-semibold text-mint-200"
+            />
+            <h1 className="text-4xl md:text-6xl font-bold text-mint-950">Welcome back, {firstName}</h1>
+            <p className="mt-3 text-lg text-mint-800">Here&apos;s how today looks across MoHR.</p>
+          </div>
+          <div className="lg:w-80">
+            <TodayStatus />
+          </div>
+        </div>
+      </section>
 
       {error && <Alert>Failed to load dashboard data</Alert>}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 stagger">
         <StatCard
           label="Active Employees"
           value={value(stats?.totalEmployees)}
-          icon={<Users size={24} />}
+          icon={<Users size={22} />}
+          tone="ink"
           href={canViewEmployees ? '/employees' : undefined}
         />
         <StatCard
           label={canViewEmployees ? 'Pending Leave Requests' : 'My Pending Requests'}
           value={value(stats?.pendingLeaves)}
-          icon={<Calendar size={24} />}
-          tone="blue"
+          icon={<Calendar size={22} />}
+          tone="sky"
           href="/leave"
         />
         <StatCard
           label="Absent Today"
           value={value(stats?.absentToday)}
-          icon={<Clock size={24} />}
+          icon={<Clock size={22} />}
           tone="amber"
           hint="Not checked in and not on leave"
         />
         <StatCard
           label="My Bookings Today"
           value={value(stats?.myBookingsToday)}
-          icon={<DoorOpen size={24} />}
-          tone="red"
+          icon={<DoorOpen size={22} />}
+          tone="mint"
           href="/rooms"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 stagger">
         {quickActions.map((action) => (
           <Link
             key={action.href}
             href={action.href}
-            className="group bg-white rounded-2xl border-2 border-moss-100 p-8 shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all"
+            className="group rounded-card border border-mint-900/8 bg-white p-6 shadow-soft transition-[transform,box-shadow] duration-200 ease-out-soft hover:-translate-y-1 hover:shadow-lift"
           >
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <h3 className="text-2xl font-bold text-moss-900 mb-2">{action.title}</h3>
-                <p className="text-sm text-moss-600">{action.text}</p>
-              </div>
-              <div className={`p-4 rounded-2xl bg-linear-to-br ${action.colors}`}>{action.icon}</div>
+            <div className="mb-8 grid size-12 place-items-center rounded-2xl bg-mint-100 text-mint-800 transition-[transform,background-color] duration-300 ease-pop group-hover:-rotate-6 group-hover:scale-110 group-hover:bg-mint-200">
+              {action.icon}
             </div>
-            <span className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-r from-moss-500 to-moss-600 text-white rounded-xl font-semibold shadow-md">
-              {action.cta} <ArrowRight size={18} className="group-hover:translate-x-2 transition-transform" />
+            <h3 className="text-xl font-bold text-mint-950">{action.title}</h3>
+            <p className="mt-1 text-sm text-mint-700">{action.text}</p>
+            <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-mint-900">
+              Open
+              <ArrowRight size={16} className="transition-transform duration-200 ease-out-soft group-hover:translate-x-1" />
             </span>
           </Link>
         ))}

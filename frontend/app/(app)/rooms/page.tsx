@@ -67,54 +67,55 @@ function useFormState<T>(empty: T) {
 function RoomCard({ room, onBook }: { room: Room; onBook: () => void }) {
   return (
     <div
-      className={`rounded-3xl p-7 space-y-5 border-2 transition-all duration-300 ${
-        room.bookable
-          ? 'bg-white border-moss-100 shadow-lg hover:shadow-2xl hover:-translate-y-2'
-          : 'bg-gray-50 border-gray-200 opacity-60'
+      className={`group flex flex-col gap-5 rounded-card border border-mint-900/8 p-6 transition-[transform,box-shadow] duration-200 ease-out-soft ${
+        room.bookable ? 'bg-white shadow-soft hover:-translate-y-1 hover:shadow-lift' : 'bg-stone-50 opacity-70'
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <h3 className="font-bold text-lg text-moss-900">{room.name}</h3>
-          <p className="text-xs text-moss-600 mt-1 flex items-center gap-1">
-            <MapPin size={14} />
-            {room.location}
-          </p>
-        </div>
+      <div>
         {room.bookable && (
           <span
-            className={`shrink-0 px-3 py-1 text-xs font-bold rounded-full ${
-              room.inUseNow ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+              room.inUseNow ? 'bg-amber-100 text-amber-800' : 'bg-mint-100 text-mint-800'
             }`}
           >
+            <span aria-hidden className={`size-1.5 rounded-full ${room.inUseNow ? 'bg-amber-500' : 'bg-mint-500'}`} />
             {room.inUseNow ? 'In use' : 'Free now'}
           </span>
         )}
+        <h3 className="mt-3 text-lg font-bold text-mint-950">{room.name}</h3>
+        <p className="mt-1 flex items-center gap-1 text-sm text-mint-700">
+          <MapPin size={14} />
+          {room.location}
+        </p>
       </div>
 
-      <div className="flex items-center gap-3 p-3 bg-moss-50 rounded-xl">
-        <Users size={18} className="text-moss-600" />
-        <p className="text-sm font-bold text-moss-900">{room.capacity} people</p>
-      </div>
+      <p className="flex items-center gap-2 text-sm font-semibold text-mint-900">
+        <span className="grid size-8 place-items-center rounded-xl bg-mint-100 text-mint-800">
+          <Users size={16} />
+        </span>
+        Seats {room.capacity}
+      </p>
 
       {room.amenities.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {room.amenities.map((amenity) => (
-            <span key={amenity} className="text-xs bg-moss-100 text-moss-900 px-3 py-1.5 rounded-full font-semibold border border-moss-300">
+            <span key={amenity} className="rounded-full border border-mint-900/10 px-2.5 py-1 text-xs font-medium text-mint-800">
               {amenity}
             </span>
           ))}
         </div>
       )}
 
-      {room.bookable ? (
-        <Button size="sm" className="w-full" onClick={onBook}>
-          <Plus size={16} />
-          Book Room
-        </Button>
-      ) : (
-        <p className="p-3 bg-red-50 rounded-xl text-center text-sm font-semibold text-red-600">Out of service</p>
-      )}
+      <div className="mt-auto">
+        {room.bookable ? (
+          <Button size="sm" variant="secondary" className="w-full" onClick={onBook}>
+            <Plus size={16} />
+            Book Room
+          </Button>
+        ) : (
+          <p className="rounded-full bg-stone-100 py-1.5 text-center text-sm font-semibold text-stone-700">Out of service</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -199,18 +200,18 @@ export default function RoomsPage() {
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <SectionTitle>Rooms</SectionTitle>
-          <span className="text-sm text-moss-900 bg-moss-100 px-5 py-2.5 rounded-full font-bold border-2 border-moss-200">
+          <span className="rounded-full bg-mint-200 px-4 py-1.5 text-sm font-semibold text-mint-900">
             {roomList.filter((r) => r.bookable && !r.inUseNow).length} Free Now
           </span>
         </div>
 
         {!rooms.loading && roomList.length === 0 && !rooms.error && (
-          <p className="text-moss-600">
+          <p className="text-mint-700">
             No rooms yet.{isAdmin ? ' Use "Add Room" to create one.' : ' Ask an administrator to add rooms.'}
           </p>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 stagger">
           {roomList.map((room) => (
             <RoomCard key={room.id} room={room} onBook={() => openBooking(room)} />
           ))}
@@ -222,16 +223,16 @@ export default function RoomsPage() {
         description={`${myBookings.length} upcoming ${myBookings.length === 1 ? 'booking' : 'bookings'}`}
       >
         {myBookings.length === 0 ? (
-          <div className="text-center py-12 text-moss-600">
+          <div className="text-center py-12 text-mint-700">
             <Clock className="mx-auto mb-4" size={32} />
             <p className="font-medium">No upcoming bookings</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 stagger">
             {myBookings.map((b) => (
-              <div key={b.id} className="rounded-xl border border-moss-100 bg-linear-to-r from-moss-50/50 to-transparent p-4">
-                <h3 className="font-semibold text-moss-900">{b.roomName}</h3>
-                <div className="flex flex-wrap gap-3 mt-2 text-sm text-moss-600 font-medium">
+              <div key={b.id} className="rounded-2xl border border-mint-900/8 p-4 transition-colors duration-200 hover:bg-mint-50">
+                <h3 className="font-semibold text-mint-950">{b.roomName}</h3>
+                <div className="flex flex-wrap gap-3 mt-2 text-sm text-mint-700 font-medium">
                   <span className="flex items-center gap-1">
                     <Calendar size={14} />
                     {formatDate(b.date, { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -240,7 +241,7 @@ export default function RoomsPage() {
                     <Clock size={14} />
                     {formatTime(b.startTime)} - {formatTime(b.endTime)}
                   </span>
-                  <span className="text-xs bg-moss-100 px-2 py-1 rounded-full">{b.purpose}</span>
+                  <span className="rounded-full bg-mint-100 px-2.5 py-0.5 text-xs text-mint-900">{b.purpose}</span>
                 </div>
               </div>
             ))}

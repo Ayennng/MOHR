@@ -1,25 +1,35 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
+import { useCountUp } from '@/lib/use-count-up';
 
+// Each tone: icon chip, value ink, progress fill. Labels and hints stay mint-700 (5.8:1).
 const tones = {
-  moss: { border: 'border-moss-100', icon: 'from-moss-500 to-moss-700', label: 'text-moss-600', value: 'text-moss-900', track: 'bg-moss-100', fill: 'from-moss-500 to-moss-600' },
-  emerald: { border: 'border-emerald-100', icon: 'from-emerald-500 to-emerald-700', label: 'text-emerald-600', value: 'text-emerald-900', track: 'bg-emerald-100', fill: 'from-emerald-500 to-emerald-600' },
-  red: { border: 'border-red-100', icon: 'from-red-500 to-red-700', label: 'text-red-600', value: 'text-red-900', track: 'bg-red-100', fill: 'from-red-500 to-red-600' },
-  amber: { border: 'border-amber-100', icon: 'from-amber-500 to-amber-700', label: 'text-amber-600', value: 'text-amber-900', track: 'bg-amber-100', fill: 'from-amber-500 to-amber-600' },
-  blue: { border: 'border-blue-100', icon: 'from-blue-500 to-blue-700', label: 'text-blue-600', value: 'text-blue-900', track: 'bg-blue-100', fill: 'from-blue-500 to-blue-600' },
+  mint: { chip: 'bg-mint-200 text-mint-900', value: 'text-mint-900', fill: 'bg-mint-500', track: 'bg-mint-100' },
+  ink: { chip: 'bg-mint-900 text-mint-200', value: 'text-mint-900', fill: 'bg-mint-800', track: 'bg-mint-100' },
+  sky: { chip: 'bg-sky-100 text-sky-800', value: 'text-mint-900', fill: 'bg-sky-500', track: 'bg-sky-100' },
+  amber: { chip: 'bg-amber-100 text-amber-800', value: 'text-mint-900', fill: 'bg-amber-500', track: 'bg-amber-100' },
+  rose: { chip: 'bg-rose-100 text-rose-800', value: 'text-mint-900', fill: 'bg-rose-500', track: 'bg-rose-100' },
 };
 
 export type StatTone = keyof typeof tones;
 
+/** A number that counts up to its value; anything else is shown as it is. */
+function AnimatedValue({ value }: { value: React.ReactNode }) {
+  const counted = useCountUp(typeof value === 'number' ? value : undefined);
+  return <>{typeof value === 'number' ? counted : value}</>;
+}
+
 /**
- * One headline number. `progress` (0-100) adds a bar under it; `href` makes the
+ * One headline number. `progress` (0-100) adds a bar that grows in; `href` makes the
  * whole card a link to the section it summarises.
  */
 export function StatCard({
   label,
   value,
   icon,
-  tone = 'moss',
+  tone = 'mint',
   hint,
   badge,
   progress,
@@ -35,24 +45,32 @@ export function StatCard({
   href?: string;
 }) {
   const t = tones[tone];
-  const className = `block rounded-2xl bg-white p-6 shadow-sm border-2 ${t.border} transition-all ${
-    href ? 'hover:shadow-xl hover:-translate-y-1' : ''
-  }`;
+  const className =
+    'group block rounded-card bg-white p-6 border border-mint-900/8 shadow-soft ' +
+    'transition-[transform,box-shadow] duration-200 ease-out-soft ' +
+    (href ? 'hover:-translate-y-1 hover:shadow-lift' : '');
 
   const content = (
     <>
-      <div className="flex items-start justify-between mb-4">
-        <div className={`p-3 rounded-xl bg-linear-to-br text-white ${t.icon}`}>{icon}</div>
-        {badge && <span className={`text-xs font-bold px-3 py-1 rounded-full ${t.track} ${t.value}`}>{badge}</span>}
+      <div className="flex items-start justify-between mb-5">
+        <div className={`grid place-items-center size-11 rounded-2xl transition-transform duration-200 ease-out-soft group-hover:-rotate-6 ${t.chip}`}>
+          {icon}
+        </div>
+        {badge && <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-mint-100 text-mint-800">{badge}</span>}
       </div>
-      <p className={`text-xs font-bold uppercase tracking-wider ${t.label}`}>{label}</p>
-      <p className={`text-4xl font-extrabold mt-1 ${t.value}`}>{value}</p>
+      <p className="text-sm font-medium text-mint-700">{label}</p>
+      <p className={`font-display text-4xl font-bold mt-1 tabular-nums ${t.value}`}>
+        <AnimatedValue value={value} />
+      </p>
       {progress !== undefined && (
-        <div className={`mt-4 h-2.5 w-full rounded-full overflow-hidden ${t.track}`}>
-          <div className={`h-full rounded-full bg-linear-to-r ${t.fill}`} style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
+        <div className={`mt-4 h-2 w-full rounded-full overflow-hidden ${t.track}`}>
+          <div
+            className={`h-full w-full rounded-full origin-left transition-transform duration-[600ms] ease-out-soft ${t.fill}`}
+            style={{ transform: `scaleX(${Math.min(100, Math.max(0, progress)) / 100})` }}
+          />
         </div>
       )}
-      {hint && <p className={`text-xs font-medium mt-3 ${t.label}`}>{hint}</p>}
+      {hint && <p className="text-xs mt-3 text-mint-700">{hint}</p>}
     </>
   );
 

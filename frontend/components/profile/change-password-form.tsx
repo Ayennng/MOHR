@@ -73,7 +73,7 @@ export default function ChangePasswordForm() {
           <Field label="Confirm New Password">{input('confirmPassword', 'new-password')}</Field>
         </div>
 
-        <div className="flex justify-end pt-6 border-t border-moss-100">
+        <div className="flex justify-end pt-6 border-t border-mint-100">
           <Button type="submit" isLoading={saving}>
             <KeyRound size={18} />
             Change Password

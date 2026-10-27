@@ -1,29 +1,22 @@
 import React from 'react';
-import { Check, X, Clock, AlertCircle } from 'lucide-react';
 import { humanize } from '@/lib/format';
 
 export type BadgeVariant = 'success' | 'error' | 'warning' | 'info' | 'neutral';
 
-const variantStyles: Record<BadgeVariant, string> = {
-  success: 'bg-green-50 text-green-700 border border-green-200',
-  error: 'bg-red-50 text-red-700 border border-red-200',
-  warning: 'bg-amber-50 text-amber-700 border border-amber-200',
-  info: 'bg-blue-50 text-blue-700 border border-blue-200',
-  neutral: 'bg-moss-50 text-moss-700 border border-moss-200',
-};
-
-const icons: Record<BadgeVariant, React.ReactNode> = {
-  success: <Check size={14} />,
-  error: <X size={14} />,
-  warning: <AlertCircle size={14} />,
-  info: <Clock size={14} />,
-  neutral: null,
+// Every pair is the -800 ink on its -100 tint: 7:1 or better
+const variantStyles: Record<BadgeVariant, { badge: string; dot: string }> = {
+  success: { badge: 'bg-mint-100 text-mint-800', dot: 'bg-mint-500' },
+  error: { badge: 'bg-rose-100 text-rose-800', dot: 'bg-rose-500' },
+  warning: { badge: 'bg-amber-100 text-amber-800', dot: 'bg-amber-500' },
+  info: { badge: 'bg-sky-100 text-sky-800', dot: 'bg-sky-500' },
+  neutral: { badge: 'bg-stone-100 text-stone-700', dot: 'bg-stone-400' },
 };
 
 export function Badge({ variant = 'neutral', children }: { variant?: BadgeVariant; children: React.ReactNode }) {
+  const style = variantStyles[variant];
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${variantStyles[variant]}`}>
-      {icons[variant]}
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${style.badge}`}>
+      <span aria-hidden className={`size-1.5 rounded-full ${style.dot}`} />
       {children}
     </span>
   );

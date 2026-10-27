@@ -31,10 +31,10 @@ const toForm = (p: UserProfile): ProfileForm => ({
 function SummaryRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="w-8 h-8 shrink-0 rounded-lg bg-moss-100 text-moss-600 flex items-center justify-center">{icon}</div>
+      <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-mint-100 text-mint-800">{icon}</div>
       <div className="min-w-0">
-        <p className="text-xs text-moss-600 font-medium">{label}</p>
-        <p className="text-sm text-moss-900 truncate">{value}</p>
+        <p className="text-xs text-mint-700 font-medium">{label}</p>
+        <p className="text-sm text-mint-900 truncate">{value}</p>
       </div>
     </div>
   );
@@ -78,7 +78,7 @@ function ProfileEditor({ profile }: { profile: UserProfile }) {
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <Card title="Profile Picture">
         <AvatarUpload currentAvatar={avatar} onChange={handleAvatarChange} />
-        <div className="mt-6 pt-6 border-t border-moss-100 space-y-3">
+        <div className="mt-6 pt-6 border-t border-mint-100 space-y-3">
           <SummaryRow icon={<Mail size={16} />} label="Email" value={profile.email} />
           <SummaryRow icon={<Shield size={16} />} label="Role" value={humanize(profile.role)} />
           {profile.department && <SummaryRow icon={<Building size={16} />} label="Department" value={profile.department} />}
@@ -109,7 +109,7 @@ function ProfileEditor({ profile }: { profile: UserProfile }) {
               <input value={form.department} onChange={set('department')} className={inputClass} placeholder="e.g., Engineering, HR, Sales" />
             </Field>
 
-            <div className="flex justify-end gap-3 pt-6 border-t border-moss-100">
+            <div className="flex justify-end gap-3 pt-6 border-t border-mint-100">
               <Button variant="ghost" onClick={() => setForm(toForm(profile))}>
                 Reset
               </Button>

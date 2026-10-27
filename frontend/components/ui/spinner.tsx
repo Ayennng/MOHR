@@ -1,15 +1,21 @@
-const sizes = { sm: 'h-4 w-4', md: 'h-8 w-8', lg: 'h-12 w-12' };
+const sizes = { sm: 'size-4 border-2', md: 'size-7 border-[3px]', lg: 'size-10 border-[3px]' };
 
+/** Loading ring. It spins only while something is actually loading. */
 export function Spinner({ size = 'md' }: { size?: keyof typeof sizes }) {
-  return <span className={`inline-block animate-spin rounded-full border-b-2 border-current ${sizes[size]}`} aria-hidden />;
+  return (
+    <span
+      aria-hidden
+      className={`inline-block animate-spin rounded-full border-current border-r-transparent opacity-80 ${sizes[size]}`}
+    />
+  );
 }
 
 /** Centred spinner for a whole page or panel that is still loading. */
 export function PageSpinner({ label }: { label?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-24 text-moss-600" role="status">
+    <div className="flex flex-col items-center justify-center gap-4 py-24 text-mint-600 animate-fade" role="status">
       <Spinner size="lg" />
-      {label && <p>{label}</p>}
+      <p className="text-sm text-mint-700">{label ?? 'Loading...'}</p>
     </div>
   );
 }

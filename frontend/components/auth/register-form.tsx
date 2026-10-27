@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { Alert, Button, inputClass } from '@/components/ui';
 import { FormField, PasswordInput } from './form-field';
 
 // Same password policy as the backend (8-72 characters, a letter and a number)
@@ -62,23 +63,27 @@ export function RegisterForm() {
 
   return (
     <div>
-      <h1 className="auth-heading">Create Account</h1>
-      <p className="auth-subheading">Join us and start managing your work efficiently</p>
+      <h1 className="text-4xl font-bold text-mint-950">Create Account</h1>
+      <p className="mt-2 mb-8 text-mint-700">Join us and start managing your work efficiently</p>
 
-      {error && <div className="error-message">{error}</div>}
+      {error && (
+        <div className="mb-5">
+          <Alert>{error}</Alert>
+        </div>
+      )}
 
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="form-group-row">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        <div className="grid grid-cols-2 gap-4">
           <FormField label="First Name" error={errors.firstName?.message} required>
-            <input type="text" placeholder="John" className="form-input" {...register('firstName')} />
+            <input type="text" placeholder="John" className={inputClass} {...register('firstName')} />
           </FormField>
           <FormField label="Last Name" error={errors.lastName?.message} required>
-            <input type="text" placeholder="Doe" className="form-input" {...register('lastName')} />
+            <input type="text" placeholder="Doe" className={inputClass} {...register('lastName')} />
           </FormField>
         </div>
 
         <FormField label="Email" error={errors.email?.message} required>
-          <input type="email" placeholder="your@email.com" className="form-input" autoComplete="email" {...register('email')} />
+          <input type="email" placeholder="your@email.com" className={inputClass} autoComplete="email" {...register('email')} />
         </FormField>
 
         <FormField label="Password" error={errors.password?.message} required>
@@ -89,26 +94,29 @@ export function RegisterForm() {
           <PasswordInput placeholder="Confirm your password" autoComplete="new-password" {...register('confirmPassword')} />
         </FormField>
 
-        <div className="form-group-row">
+        <div className="grid grid-cols-2 gap-4">
           <FormField label="Position" error={errors.position?.message} required>
-            <input type="text" placeholder="e.g., Developer" className="form-input" {...register('position')} />
+            <input type="text" placeholder="e.g., Developer" className={inputClass} {...register('position')} />
           </FormField>
           <FormField label="Department" error={errors.department?.message} required>
-            <input type="text" placeholder="e.g., Finance" className="form-input" {...register('department')} />
+            <input type="text" placeholder="e.g., Finance" className={inputClass} {...register('department')} />
           </FormField>
         </div>
 
         <FormField label="Phone (Optional)" error={errors.phone?.message}>
-          <input type="tel" placeholder="+60 00-0000000" className="form-input" {...register('phone')} />
+          <input type="tel" placeholder="+60 00-0000000" className={inputClass} {...register('phone')} />
         </FormField>
 
-        <button type="submit" disabled={isLoading} className={`btn btn-primary ${isLoading ? 'btn-loading' : ''}`}>
+        <Button type="submit" size="lg" isLoading={isLoading} className="w-full">
           {isLoading ? 'Creating Account...' : 'Create Account'}
-        </button>
+        </Button>
       </form>
 
-      <div className="auth-link">
-        Already have an account? <Link href="/login">Sign in</Link>
+      <div className="mt-8 text-center text-sm text-mint-700">
+        Already have an account?{' '}
+        <Link href="/login" className="font-semibold text-mint-900 underline decoration-mint-300 decoration-2 underline-offset-4 transition-colors hover:decoration-mint-600">
+          Sign in
+        </Link>
       </div>
     </div>
   );

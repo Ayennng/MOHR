@@ -6,7 +6,7 @@
 
 **Live demo:** [mohr-hr.onrender.com](https://mohr-hr.onrender.com). Pick **Admin**, **Manager** or **Employee** on the login page to sign in to a sample company; the data resets every night. On weekdays from 08:00 to 22:00 Malaysia time it's kept awake; outside those hours the first visit takes about a minute.
 
-**Theme**: Moss Growth 🌿 - a nature-inspired design for modern HR management.
+**Theme**: Mint (`#C2F8CB`) with deep forest-green ink, Bricolage Grotesque + Figtree, quick soft motion. See [frontend/DESIGN.md](frontend/DESIGN.md).
 
 ---
 
@@ -224,4 +224,4 @@ After adding a custom domain, set the frontend's `NEXTAUTH_URL` to it.
 
 This project is private and proprietary.
 
-**Built with ❤️ using Next.js and the Moss Growth philosophy 🌿**
+**Built with Next.js 🌿**

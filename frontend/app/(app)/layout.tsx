@@ -10,13 +10,13 @@ function AppShell({ children }: { children: React.ReactNode }) {
   const { sidebarOpen } = useSidebar();
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-moss-50 to-white">
+    <div className="min-h-screen bg-ground">
       <Header />
       <div className="flex h-screen pt-16">
         <Sidebar />
-        <main className={`flex-1 overflow-y-auto transition-[margin] duration-400 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
+        <main className={`flex-1 overflow-y-auto transition-[margin] duration-300 ease-out-soft ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
           <div className="p-4 sm:p-6 lg:p-8">
-            <div className="max-w-7xl mx-auto space-y-8">{children}</div>
+            <div className="max-w-7xl mx-auto">{children}</div>
           </div>
         </main>
       </div>

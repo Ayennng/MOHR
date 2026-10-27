@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { BarChart3, Users, Calendar, TrendingUp } from 'lucide-react';
 import { useApi } from '@/lib/api';
-import { Alert, Card, PageHeader, PageSpinner, StatCard } from '@/components/ui';
+import { Alert, Card, PageHeader, PageSpinner, Segmented, StatCard } from '@/components/ui';
 
 interface ReportData {
   metrics: {
@@ -23,33 +23,30 @@ const PERIODS = [
   { value: 'month', label: 'Last Month' },
   { value: 'quarter', label: 'Last Quarter' },
   { value: 'year', label: 'Last Year' },
-];
+] as const;
 
-const BAR_COLORS = [
-  'from-moss-500 to-moss-600',
-  'from-blue-500 to-blue-600',
-  'from-amber-500 to-amber-600',
-  'from-green-500 to-green-600',
-  'from-red-500 to-red-600',
-  'from-purple-500 to-purple-600',
-];
+const BAR_COLORS = ['bg-mint-800', 'bg-mint-500', 'bg-sky-500', 'bg-amber-500', 'bg-rose-400', 'bg-mint-300'];
 
+/** A labelled bar. It grows from the left (scaleX) when its value arrives or changes. */
 function Bar({ label, value, width, color }: { label: string; value: string | number; width: number; color: string }) {
   return (
     <div>
       <div className="flex justify-between items-center mb-2">
-        <span className="font-semibold text-moss-900">{label}</span>
-        <span className="text-sm bg-moss-100 text-moss-900 px-3 py-1 rounded-full font-bold">{value}</span>
+        <span className="text-sm font-semibold text-mint-950">{label}</span>
+        <span className="text-sm font-semibold tabular-nums text-mint-800">{value}</span>
       </div>
-      <div className="w-full bg-moss-100 rounded-full h-3 overflow-hidden">
-        <div className={`bg-linear-to-r ${color} h-3 rounded-full`} style={{ width: `${width}%` }} />
+      <div className="h-2.5 w-full rounded-full bg-mint-100 overflow-hidden">
+        <div
+          className={`h-full w-full rounded-full origin-left transition-transform duration-[600ms] ease-out-soft ${color}`}
+          style={{ transform: `scaleX(${Math.min(100, Math.max(0, width)) / 100})` }}
+        />
       </div>
     </div>
   );
 }
 
 export default function ReportsPage() {
-  const [period, setPeriod] = useState('month');
+  const [period, setPeriod] = useState<(typeof PERIODS)[number]['value']>('month');
   const { data: report, error, loading } = useApi<ReportData>(`/api/reports?period=${period}`);
   const periodLabel = PERIODS.find((p) => p.value === period)!.label.toLowerCase();
 
@@ -57,20 +54,7 @@ export default function ReportsPage() {
     <>
       <PageHeader eyebrow="Analytics" title="Reports & Analytics" description="HR metrics across the company" />
 
-      <div className="bg-white rounded-2xl border-2 border-moss-100 p-2 shadow-lg inline-flex flex-wrap gap-2">
-        {PERIODS.map((p) => (
-          <button
-            key={p.value}
-            type="button"
-            onClick={() => setPeriod(p.value)}
-            className={`px-5 py-2.5 rounded-xl font-medium transition-all ${
-              period === p.value ? 'bg-linear-to-r from-moss-500 to-moss-600 text-white shadow-md' : 'text-moss-700 hover:bg-moss-50'
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+      <Segmented label="Report period" options={PERIODS} value={period} onChange={setPeriod} />
 
       {error && <Alert>Failed to load report data: {error}</Alert>}
 
@@ -78,7 +62,7 @@ export default function ReportsPage() {
         loading && <PageSpinner label="Loading report data..." />
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 stagger">
             <StatCard
               label="Active Employees"
               value={report.metrics.totalEmployees}
@@ -90,7 +74,7 @@ export default function ReportsPage() {
               label="Avg Attendance"
               value={`${report.metrics.avgAttendance}%`}
               icon={<TrendingUp size={24} />}
-              tone="emerald"
+              tone="mint"
               hint="Check-ins out of all working days"
             />
             <StatCard
@@ -104,7 +88,7 @@ export default function ReportsPage() {
               label="Departments"
               value={report.metrics.departmentCount}
               icon={<BarChart3 size={24} />}
-              tone="blue"
+              tone="sky"
               hint="With at least one active employee"
             />
           </div>
@@ -112,7 +96,7 @@ export default function ReportsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card title="Employees by Department">
               {report.departmentStats.length === 0 ? (
-                <p className="text-center py-8 text-moss-600">No department data available</p>
+                <p className="text-center py-8 text-mint-700">No department data available</p>
               ) : (
                 <div className="space-y-4">
                   {report.departmentStats.map((dept, i) => (
@@ -130,7 +114,7 @@ export default function ReportsPage() {
                     label={day.day}
                     value={`${day.rate}%`}
                     width={day.rate}
-                    color={day.rate >= 96 ? 'from-green-500 to-green-600' : 'from-amber-500 to-amber-600'}
+                    color={day.rate >= 96 ? 'bg-mint-500' : 'bg-amber-500'}
                   />
                 ))}
               </div>
@@ -138,16 +122,16 @@ export default function ReportsPage() {
           </div>
 
           <Card title="Leave Requests" description={`Submitted in the ${periodLabel}; pending is everything still waiting`}>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger">
               {[
-                { label: 'Approved', value: report.leaveStats.approved, color: 'from-green-50 text-green-700' },
-                { label: 'Pending', value: report.leaveStats.pending, color: 'from-amber-50 text-amber-700' },
-                { label: 'Rejected', value: report.leaveStats.rejected, color: 'from-red-50 text-red-700' },
-                { label: 'Cancelled', value: report.leaveStats.cancelled, color: 'from-blue-50 text-blue-700' },
+                { label: 'Approved', value: report.leaveStats.approved, color: 'bg-mint-100 text-mint-900' },
+                { label: 'Pending', value: report.leaveStats.pending, color: 'bg-amber-100 text-amber-900' },
+                { label: 'Rejected', value: report.leaveStats.rejected, color: 'bg-rose-100 text-rose-900' },
+                { label: 'Cancelled', value: report.leaveStats.cancelled, color: 'bg-stone-100 text-stone-800' },
               ].map((stat) => (
-                <div key={stat.label} className={`bg-linear-to-br to-transparent rounded-xl p-6 border border-moss-100 ${stat.color}`}>
-                  <p className="text-xs font-semibold uppercase tracking-wide">{stat.label}</p>
-                  <p className="text-3xl font-bold mt-2">{stat.value}</p>
+                <div key={stat.label} className={`rounded-2xl p-5 ${stat.color}`}>
+                  <p className="text-xs font-semibold uppercase tracking-wider">{stat.label}</p>
+                  <p className="font-display text-4xl font-bold mt-2 tabular-nums">{stat.value}</p>
                 </div>
               ))}
             </div>

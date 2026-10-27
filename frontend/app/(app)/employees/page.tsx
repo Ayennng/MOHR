@@ -66,7 +66,7 @@ export default function EmployeesPage() {
       label: 'Actions',
       render: (e) => (
         <div className="flex items-center gap-2">
-          <Link href={`/employees/${e.id}/edit`} className="p-1 text-moss-600 hover:bg-moss-50 rounded" title="Edit">
+          <Link href={`/employees/${e.id}/edit`} className="grid size-8 place-items-center rounded-full text-mint-800 transition-colors hover:bg-mint-100" title="Edit">
             <Edit2 size={18} />
           </Link>
           {e.status !== 'INACTIVE' && (
@@ -76,7 +76,7 @@ export default function EmployeesPage() {
                 setDeactivateError(null);
                 setDeactivating(e);
               }}
-              className="p-1 text-red-600 hover:bg-red-50 rounded"
+              className="grid size-8 place-items-center rounded-full text-rose-700 transition-colors hover:bg-rose-50"
               title="Deactivate"
             >
               <Trash2 size={18} />
@@ -109,9 +109,9 @@ export default function EmployeesPage() {
           label="Active"
           value={employees.filter((e) => e.status === 'ACTIVE').length}
           icon={<Users size={24} />}
-          tone="emerald"
+          tone="mint"
         />
-        <StatCard label="Departments" value={departments} icon={<Building size={24} />} tone="blue" />
+        <StatCard label="Departments" value={departments} icon={<Building size={24} />} tone="sky" />
       </div>
 
       <Card title="Employee Directory">
@@ -129,7 +129,7 @@ export default function EmployeesPage() {
       <Modal isOpen={!!deactivating} onClose={() => setDeactivating(null)} title="Deactivate Employee">
         <div className="space-y-4">
           <Alert>{deactivateError}</Alert>
-          <p className="text-moss-700">
+          <p className="text-mint-700">
             Deactivate {deactivating?.user.firstName} {deactivating?.user.lastName}? They will no longer be able to
             sign in. Their leave and attendance history is kept, and you can reactivate them from Edit.
           </p>

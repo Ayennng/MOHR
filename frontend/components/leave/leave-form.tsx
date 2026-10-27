@@ -97,11 +97,11 @@ export function LeaveForm({ onSubmit }: { onSubmit: (data: FormData) => Promise<
           type="file"
           onChange={handleFileChange}
           accept=".pdf,.jpg,.jpeg,.png,.webp"
-          className={`${inputClass} file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-moss-100 file:text-moss-700 file:font-semibold hover:file:bg-moss-200`}
+          className={`${inputClass} file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-mint-200 file:text-mint-900 file:font-semibold hover:file:bg-mint-300`}
         />
       </Field>
       {file && (
-        <p className="text-green-600 text-sm -mt-4 flex items-center gap-2">
+        <p className="-mt-4 flex items-center gap-2 text-sm text-mint-800 animate-fade">
           <Check size={16} />
           {file.name} ({(file.size / 1024).toFixed(1)} KB)
         </p>

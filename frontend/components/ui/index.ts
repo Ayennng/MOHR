@@ -5,6 +5,7 @@ export { Field, inputClass } from './field';
 export { Card, PageHeader, SectionTitle } from './layout';
 export { Modal, ModalActions } from './modal';
 export { Pagination } from './pagination';
+export { Segmented } from './segmented';
 export { PageSpinner, Spinner } from './spinner';
 export { StatCard } from './stat-card';
 export { Table } from './table';

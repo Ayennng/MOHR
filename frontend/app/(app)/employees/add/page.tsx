@@ -39,13 +39,13 @@ export default function AddEmployeePage() {
       <Card>
         {created ? (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-moss-900">Employee {created.employeeId} created</h2>
-            <p className="text-moss-700">
+            <h2 className="text-xl font-bold text-mint-900">Employee {created.employeeId} created</h2>
+            <p className="text-mint-700">
               Give <strong>{created.email}</strong> this temporary password. It is shown only once; ask them to
               change it from their profile after signing in.
             </p>
             <div className="flex items-center gap-3">
-              <code className="px-4 py-2 bg-moss-50 border border-moss-200 rounded-lg text-lg font-mono text-moss-900">
+              <code className="rounded-xl bg-mint-200 px-4 py-2 font-mono text-lg font-semibold text-mint-950 animate-pop">
                 {created.temporaryPassword}
               </code>
               <Button variant="ghost" onClick={copyPassword}>

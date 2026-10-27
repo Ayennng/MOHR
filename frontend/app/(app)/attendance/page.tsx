@@ -5,9 +5,10 @@ import { LogIn, LogOut, CheckCircle, AlertCircle, TrendingUp, ChevronLeft, Chevr
 import { api, useApi } from '@/lib/api';
 import { formatDate, formatMinutes, formatMonth, formatTime } from '@/lib/format';
 import { sortRows, useSort } from '@/lib/sort';
-import { Alert, Card, Column, PageHeader, StatCard, StatusBadge, Table } from '@/components/ui';
+import { Alert, Button, Card, Column, PageHeader, StatCard, StatusBadge, Table } from '@/components/ui';
 import AttendanceConfirmationModal from '@/components/attendance/attendance-confirmation-modal';
 import { LiveClock } from '@/components/attendance/live-clock';
+import { Celebration } from '@/components/attendance/celebration';
 
 interface AttendanceRecord {
   id: string;
@@ -47,11 +48,14 @@ export default function AttendancePage() {
   const sort = useSort('date', 'desc');
   const [confirming, setConfirming] = useState<'checkin' | 'checkout' | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Bumped on a successful check-in, which plays the celebration once
+  const [celebrate, setCelebrate] = useState(0);
 
   const records = data?.records ?? [];
   const today = data?.todayRecord;
   const checkedIn = !!(today?.checkInTime && !today.checkOutTime);
   const doneForToday = !!today?.checkOutTime;
+  const todayLabel = doneForToday ? 'Done' : checkedIn ? 'Checked in' : 'Not in yet';
 
   const handleConfirm = async () => {
     const action = confirming;
@@ -59,6 +63,7 @@ export default function AttendancePage() {
     setActionError(null);
     try {
       await api(`/api/attendance/${action}`, { method: 'POST' });
+      if (action === 'checkin') setCelebrate((n) => n + 1);
       reload();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Something went wrong');
@@ -77,53 +82,51 @@ export default function AttendancePage() {
 
       <PageHeader eyebrow="Attendance" title="Attendance Tracking" description="Monitor your daily presence and work hours" />
 
-      <div className="rounded-3xl p-10 text-white shadow-2xl bg-linear-to-br from-moss-500 to-moss-800">
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+      <section className="relative overflow-hidden rounded-card bg-mint-950 p-8 md:p-10 text-mint-100">
+        <div className="relative flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
           <div>
-            <p className="font-semibold text-sm uppercase tracking-wide mb-2">Current Time</p>
-            <LiveClock className="text-6xl md:text-7xl font-extrabold mb-4 tracking-tight" />
-            <LiveClock format="date" className="text-white/90 text-lg font-medium" />
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-mint-300">Current time</p>
+            <LiveClock className="font-display text-6xl md:text-7xl font-bold tabular-nums text-mint-200" />
+            <LiveClock format="date" className="mt-3 text-lg text-mint-100/80" />
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch gap-3">
             {checkedIn ? (
-              <button
-                type="button"
-                onClick={() => setConfirming('checkout')}
-                className="px-8 py-5 bg-red-500 text-white rounded-2xl font-bold text-lg hover:bg-red-600 transition-all shadow-xl hover:scale-[1.02] flex items-center gap-3"
-              >
-                <LogOut size={24} />
+              <Button size="lg" variant="danger" onClick={() => setConfirming('checkout')} className="px-8">
+                <LogOut size={22} />
                 Check Out
-              </button>
+              </Button>
             ) : (
-              <button
-                type="button"
+              <Button
+                size="lg"
+                variant="secondary"
                 onClick={() => setConfirming('checkin')}
                 disabled={doneForToday || !data}
-                className="px-8 py-5 bg-white text-moss-800 rounded-2xl font-bold text-lg hover:bg-moss-50 transition-all shadow-xl hover:scale-[1.02] flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className="px-8"
               >
-                <LogIn size={24} />
+                <LogIn size={22} />
                 Check In
-              </button>
+              </Button>
             )}
-            <div className="px-6 py-5 bg-moss-800/90 rounded-2xl border border-moss-700 text-center shadow-lg">
-              <p className="text-xs font-semibold text-moss-200 uppercase mb-1">Today</p>
-              <p className="text-2xl font-bold">{doneForToday ? 'Done' : checkedIn ? 'Checked in' : 'Not in yet'}</p>
+            <div className="relative min-w-40 rounded-2xl border border-mint-100/15 bg-mint-100/10 px-6 py-3 text-center">
+              <Celebration run={celebrate} />
+              <p className="text-xs font-semibold uppercase tracking-wide text-mint-300">Today</p>
+              <p key={todayLabel} className="font-display text-2xl font-bold text-mint-200 animate-pop">{todayLabel}</p>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <Alert>{actionError}</Alert>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard label="Days Attended" value={attended} icon={<CheckCircle size={24} />} hint={monthLabel} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 stagger">
+        <StatCard label="Days Attended" value={attended} icon={<CheckCircle size={22} />} tone="ink" hint={monthLabel} />
         <StatCard label="Late Arrivals" value={late} icon={<AlertCircle size={24} />} tone="amber" hint={`Check-ins after 09:30 in ${monthLabel}`} />
         <StatCard
           label="Daily Average"
-          value={avgMinutes ? `${(avgMinutes / 60).toFixed(1)}h` : '—'}
+          value={avgMinutes ? `${(avgMinutes / 60).toFixed(1)}h` : '-'}
           icon={<TrendingUp size={24} />}
-          tone="emerald"
+          tone="mint"
           hint="Hours worked per completed day"
         />
       </div>
@@ -136,19 +139,19 @@ export default function AttendancePage() {
               type="button"
               onClick={() => data && setMonth(shiftMonth(data.month, -1))}
               disabled={!data || loading}
-              className="p-2 rounded-full hover:bg-moss-100 text-moss-700 disabled:opacity-40"
+              className="p-2 rounded-full hover:bg-mint-100 text-mint-700 disabled:opacity-40"
               aria-label="Previous month"
             >
               <ChevronLeft size={18} />
             </button>
-            <span className="text-sm text-moss-900 bg-moss-100 px-4 py-2 rounded-full font-semibold border border-moss-200 min-w-36 text-center">
+            <span className="text-sm text-mint-900 bg-mint-100 px-4 py-2 rounded-full font-semibold border border-mint-200 min-w-36 text-center">
               {monthLabel}
             </span>
             <button
               type="button"
               onClick={() => data && setMonth(shiftMonth(data.month, 1))}
               disabled={!data || loading || data.month >= data.today.slice(0, 7)}
-              className="p-2 rounded-full hover:bg-moss-100 text-moss-700 disabled:opacity-40"
+              className="p-2 rounded-full hover:bg-mint-100 text-mint-700 disabled:opacity-40"
               aria-label="Next month"
             >
               <ChevronRight size={18} />

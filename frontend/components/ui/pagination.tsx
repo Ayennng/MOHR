@@ -11,6 +11,9 @@ function pageNumbers(current: number, total: number): (number | '...')[] {
   return pages;
 }
 
+const pill =
+  'grid size-9 place-items-center rounded-full text-sm font-semibold transition-[background-color,color,transform] duration-200 ease-out-soft active:scale-95';
+
 export function Pagination({
   page,
   pageSize,
@@ -25,21 +28,21 @@ export function Pagination({
   const totalPages = Math.ceil(total / pageSize);
   if (totalPages <= 1) return null;
 
-  const arrow = 'p-2 text-moss-600 hover:bg-moss-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed';
+  const arrow = `${pill} text-mint-800 hover:bg-mint-100 disabled:opacity-40 disabled:pointer-events-none`;
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
-      <p className="text-sm text-moss-600">
-        Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total} results
+      <p className="text-sm text-mint-700">
+        Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total}
       </p>
 
       <div className="flex items-center gap-1">
         <button type="button" onClick={() => onPageChange(page - 1)} disabled={page === 1} className={arrow} aria-label="Previous page">
-          <ChevronLeft size={20} />
+          <ChevronLeft size={18} />
         </button>
         {pageNumbers(page, totalPages).map((n, i) =>
           n === '...' ? (
-            <span key={`gap-${i}`} className="px-3 py-2 text-moss-500">
+            <span key={`gap-${i}`} className="px-1 text-mint-700">
               ...
             </span>
           ) : (
@@ -48,14 +51,14 @@ export function Pagination({
               type="button"
               onClick={() => onPageChange(n)}
               aria-current={n === page ? 'page' : undefined}
-              className={`px-3 py-2 rounded-lg ${n === page ? 'bg-moss-500 text-white' : 'text-moss-700 hover:bg-moss-50'}`}
+              className={`${pill} ${n === page ? 'bg-mint-900 text-mint-200' : 'text-mint-800 hover:bg-mint-100'}`}
             >
               {n}
             </button>
           )
         )}
         <button type="button" onClick={() => onPageChange(page + 1)} disabled={page === totalPages} className={arrow} aria-label="Next page">
-          <ChevronRight size={20} />
+          <ChevronRight size={18} />
         </button>
       </div>
     </div>

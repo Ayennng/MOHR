@@ -36,8 +36,8 @@ const LONG_DATE: Intl.DateTimeFormatOptions = { weekday: 'short', year: 'numeric
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-xs text-moss-600 mb-1">{label}</p>
-      <div className="text-sm font-semibold text-moss-900">{children}</div>
+      <p className="text-xs text-mint-700 mb-1">{label}</p>
+      <div className="text-sm font-semibold text-mint-900">{children}</div>
     </div>
   );
 }
@@ -102,16 +102,16 @@ export default function LeavePage() {
       label: 'Actions',
       render: (l) =>
         l.status !== 'PENDING' ? (
-          <span className="text-xs text-gray-400">No actions</span>
+          <span className="text-xs text-mint-700">No actions</span>
         ) : l.isOwn ? (
-          <span className="text-xs text-gray-400">Awaiting another approver</span>
+          <span className="text-xs text-mint-700">Awaiting another approver</span>
         ) : (
           <div className="flex items-center gap-2">
             <Button size="sm" variant="success" disabled={deciding} onClick={() => decide(l, { status: 'APPROVED' })}>
               <Check size={14} />
               Approve
             </Button>
-            <Button size="sm" variant="danger" disabled={deciding} onClick={() => openReject(l)}>
+            <Button size="sm" variant="dangerSoft" disabled={deciding} onClick={() => openReject(l)}>
               <X size={14} />
               Reject
             </Button>
@@ -191,7 +191,7 @@ export default function LeavePage() {
       <Modal isOpen={!!viewing} onClose={() => setViewing(null)} title="Leave Request Details">
         {viewing && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4 bg-moss-50 rounded-lg p-4 border border-moss-200">
+            <div className="grid grid-cols-2 gap-4 rounded-2xl bg-mint-100 p-4">
               <Detail label="Employee">{viewing.employeeName}</Detail>
               <Detail label="Leave Type">
                 <Badge variant="info">{humanize(viewing.leaveType)}</Badge>
@@ -218,7 +218,7 @@ export default function LeavePage() {
             )}
 
             {viewing.approvedBy && (
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-moss-100">
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-mint-100">
                 <Detail label={viewing.status === 'REJECTED' ? 'Rejected by' : 'Approved by'}>{viewing.approvedBy}</Detail>
                 {viewing.approvalDate && <Detail label="On">{formatDate(viewing.approvalDate.slice(0, 10))}</Detail>}
               </div>

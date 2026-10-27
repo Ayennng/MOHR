@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { getPath, type SortDirection } from '@/lib/sort';
 import { Spinner } from './spinner';
 
@@ -30,47 +30,53 @@ export function Table<T extends { id: string }>({
   emptyText?: string;
 }) {
   return (
-    <div className="overflow-x-auto border border-moss-100 rounded-lg">
+    <div className="overflow-x-auto rounded-2xl border border-mint-900/8">
       <table className="w-full">
         <thead>
-          <tr className="bg-moss-50 border-b border-moss-100">
-            {columns.map((column) => (
-              <th key={column.label} className="px-6 py-3 text-left text-sm font-semibold text-moss-900">
-                {column.sortable && onSort ? (
-                  <button
-                    type="button"
-                    onClick={() => onSort(column.key)}
-                    className="flex items-center gap-2 hover:text-moss-700"
-                  >
-                    {column.label}
-                    {sortColumn === column.key &&
-                      (sortDirection === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
-                  </button>
-                ) : (
-                  column.label
-                )}
-              </th>
-            ))}
+          <tr className="bg-mint-50">
+            {columns.map((column) => {
+              const active = sortColumn === column.key;
+              return (
+                <th key={column.label} scope="col" className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-mint-800">
+                  {column.sortable && onSort ? (
+                    <button
+                      type="button"
+                      onClick={() => onSort(column.key)}
+                      className={`inline-flex items-center gap-1 rounded-md uppercase tracking-wider hover:text-mint-950 ${active ? 'text-mint-950' : ''}`}
+                    >
+                      {column.label}
+                      {active ? (
+                        sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+                      ) : (
+                        <ChevronsUpDown size={14} className="opacity-40" />
+                      )}
+                    </button>
+                  ) : (
+                    column.label
+                  )}
+                </th>
+              );
+            })}
           </tr>
         </thead>
-        <tbody>
+        <tbody className={loading ? '' : 'stagger'}>
           {loading ? (
             <tr>
-              <td colSpan={columns.length} className="px-6 py-8 text-center text-moss-500">
+              <td colSpan={columns.length} className="px-5 py-10 text-center text-mint-600">
                 <Spinner />
               </td>
             </tr>
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="px-6 py-8 text-center text-moss-500">
+              <td colSpan={columns.length} className="px-5 py-10 text-center text-mint-700">
                 {emptyText}
               </td>
             </tr>
           ) : (
             data.map((row) => (
-              <tr key={row.id} className="border-b border-moss-100 last:border-b-0">
+              <tr key={row.id} className="border-t border-mint-900/6 transition-colors duration-200 hover:bg-mint-50/70">
                 {columns.map((column) => (
-                  <td key={column.label} className="px-6 py-4 text-sm text-moss-700">
+                  <td key={column.label} className="whitespace-nowrap px-5 py-3.5 text-sm text-mint-900">
                     {column.render ? column.render(row) : String(getPath(row, column.key) ?? '-')}
                   </td>
                 ))}

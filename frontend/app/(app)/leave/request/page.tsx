@@ -38,11 +38,11 @@ export default function RequestLeavePage() {
         <Card title="Leave Request Form" className="lg:col-span-2">
           {submitted ? (
             <div className="text-center py-12">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 text-green-600 mb-6">
+              <div className="mb-6 inline-grid size-20 place-items-center rounded-full bg-mint-200 text-mint-900 animate-pop">
                 <Check size={40} />
               </div>
-              <h3 className="text-2xl font-bold text-moss-900 mb-3">Request Submitted!</h3>
-              <p className="text-moss-600 mb-8">Your leave request is pending approval.</p>
+              <h3 className="text-2xl font-bold text-mint-900 mb-3">Request Submitted!</h3>
+              <p className="text-mint-700 mb-8">Your leave request is pending approval.</p>
               <div className="flex gap-4 justify-center">
                 <Button
                   onClick={() => {
@@ -65,10 +65,10 @@ export default function RequestLeavePage() {
         <div className="space-y-6">
           <LeaveBalanceCards compact />
           <Card title="Good to know">
-            <ul className="space-y-3 text-sm text-moss-800">
+            <ul className="space-y-3 text-sm text-mint-800">
               {RULES.map((rule) => (
                 <li key={rule} className="flex gap-3">
-                  <span className="mt-1.5 w-2 h-2 shrink-0 bg-moss-500 rounded-full" />
+                  <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-mint-500" />
                   {rule}
                 </li>
               ))}

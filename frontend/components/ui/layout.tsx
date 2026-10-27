@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
-/** The banner at the top of every signed-in page. */
+/** The mint banner at the top of every signed-in page. */
 export function PageHeader({
   eyebrow,
   title,
@@ -17,38 +17,44 @@ export function PageHeader({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 p-8 rounded-3xl bg-linear-to-br from-moss-50 to-emerald-50 border-2 border-moss-100">
-      <div className="flex-1">
+    <header className="relative overflow-hidden flex flex-col md:flex-row items-start md:items-end justify-between gap-6 rounded-card bg-mint-200 px-8 py-9">
+      {/* Leaf-vein lines in the corner: the one decoration the banner carries */}
+      <svg aria-hidden className="absolute -right-6 -bottom-10 w-72 text-mint-300" viewBox="0 0 200 140" fill="none">
+        <path d="M10 130 C 70 120, 140 80, 190 10" stroke="currentColor" strokeWidth="2" />
+        <path d="M60 118 C 70 95, 72 80, 70 62 M100 102 C 112 84, 118 70, 118 50 M140 76 C 150 62, 155 50, 156 34" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M60 118 C 45 108, 35 98, 28 84 M100 102 C 86 96, 76 88, 68 76 M140 76 C 128 72, 118 66, 110 56" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+
+      <div className="relative flex-1 animate-rise">
         {back && (
-          <Link href={back.href} className="inline-flex items-center gap-2 mb-4 text-sm font-medium text-moss-700 hover:text-moss-900">
-            <ArrowLeft size={16} />
+          <Link
+            href={back.href}
+            className="group inline-flex items-center gap-1.5 mb-4 text-sm font-medium text-mint-800 hover:text-mint-950"
+          >
+            <ArrowLeft size={16} className="transition-transform duration-200 ease-out-soft group-hover:-translate-x-1" />
             {back.label}
           </Link>
         )}
         {eyebrow && (
-          <div className="w-fit px-4 py-2 mb-3 bg-moss-600 text-white rounded-full text-xs font-bold uppercase tracking-wide">
-            {eyebrow}
-          </div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-mint-800">{eyebrow}</p>
         )}
-        <h1 className="text-4xl md:text-5xl font-extrabold bg-linear-to-r from-moss-900 to-moss-700 bg-clip-text text-transparent pb-2 mb-2">
-          {title}
-        </h1>
-        {description && <p className="text-moss-700 text-lg">{description}</p>}
+        <h1 className="text-4xl md:text-5xl font-bold text-mint-950">{title}</h1>
+        {description && <p className="mt-3 text-mint-800 text-lg max-w-2xl">{description}</p>}
       </div>
-      {action}
-    </div>
+      {action && <div className="relative animate-rise [animation-delay:90ms]">{action}</div>}
+    </header>
   );
 }
 
-/** A section heading with the accent bar. */
+/** A section heading with a small mint mark. */
 export function SectionTitle({ children, description }: { children: React.ReactNode; description?: string }) {
   return (
     <div>
-      <h2 className="text-2xl font-extrabold text-moss-900 flex items-center gap-3">
-        <span className="w-1.5 h-7 bg-linear-to-b from-moss-500 to-moss-700 rounded-full" />
+      <h2 className="text-xl font-bold text-mint-950 flex items-center gap-2.5">
+        <span aria-hidden className="size-2.5 rounded-full bg-mint-400 ring-4 ring-mint-200" />
         {children}
       </h2>
-      {description && <p className="text-moss-600 mt-2">{description}</p>}
+      {description && <p className="text-sm text-mint-700 mt-1.5">{description}</p>}
     </div>
   );
 }
@@ -68,7 +74,7 @@ export function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className={`bg-white rounded-3xl border-2 border-moss-100 p-6 md:p-8 shadow-lg ${className}`}>
+    <section className={`bg-white rounded-card border border-mint-900/8 p-6 md:p-7 shadow-soft animate-rise ${className}`}>
       {title && (
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <SectionTitle description={description}>{title}</SectionTitle>

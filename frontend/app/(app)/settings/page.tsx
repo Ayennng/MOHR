@@ -6,7 +6,9 @@ import { useSession } from 'next-auth/react';
 import { Save, Users, Building, Lock, UserPlus } from 'lucide-react';
 import { api, useApi } from '@/lib/api';
 import type { Role } from '@/lib/auth';
-import { Alert, Button, Card, Field, PageHeader, PageSpinner, buttonClass, inputClass } from '@/components/ui';
+import {
+  Alert, Button, Card, Field, PageHeader, PageSpinner, Segmented, StatusBadge, buttonClass, inputClass,
+} from '@/components/ui';
 
 interface Settings {
   companyName: string;
@@ -79,7 +81,7 @@ function GeneralSettings({ initial }: { initial: Settings }) {
         </Field>
       </div>
 
-      <div className="flex justify-end mt-6 pt-6 border-t border-moss-100">
+      <div className="flex justify-end mt-6 pt-6 border-t border-mint-100">
         <Button onClick={handleSave} isLoading={saving}>
           <Save size={18} />
           Save Changes
@@ -129,35 +131,33 @@ function UserManagement({ currentUserId }: { currentUserId?: string }) {
           const isSelf = user.id === currentUserId;
           const busy = updatingId === user.id;
           return (
-            <div key={user.id} className="flex flex-wrap items-center justify-between gap-4 p-4 border border-moss-100 rounded-lg">
+            <div key={user.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-mint-900/8 p-4 transition-colors duration-200 hover:bg-mint-50">
               <div>
-                <p className="font-semibold text-moss-900">
+                <p className="font-semibold text-mint-900">
                   {user.firstName} {user.lastName}
-                  {isSelf && <span className="ml-2 text-xs text-moss-500">(you)</span>}
+                  {isSelf && <span className="ml-2 text-xs text-mint-700">(you)</span>}
                 </p>
-                <p className="text-sm text-moss-600">{user.email}</p>
+                <p className="text-sm text-mint-700">{user.email}</p>
               </div>
               <div className="flex items-center gap-3">
                 <select
                   value={user.role}
                   disabled={isSelf || busy}
                   onChange={(e) => updateUser(user.id, { role: e.target.value as Role })}
-                  className="px-3 py-1.5 border border-moss-200 rounded-lg text-sm text-moss-900 disabled:opacity-60"
+                  className="rounded-full border border-mint-900/15 bg-white px-3 py-1.5 text-sm font-medium text-mint-900 transition-colors hover:border-mint-900/30 disabled:opacity-60"
                   title={isSelf ? 'You cannot change your own role' : 'Role'}
                 >
                   <option value="EMPLOYEE">Employee</option>
                   <option value="MANAGER">Manager</option>
                   <option value="ADMIN">Admin</option>
                 </select>
-                <span className={`text-xs px-3 py-1 rounded-full ${user.active ? 'bg-moss-100 text-moss-700' : 'bg-red-100 text-red-700'}`}>
-                  {user.active ? 'Active' : 'Inactive'}
-                </span>
+                <StatusBadge status={user.active ? 'ACTIVE' : 'INACTIVE'} />
                 {!isSelf && (
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => updateUser(user.id, { active: !user.active })}
-                    className="text-xs font-semibold text-moss-700 hover:underline disabled:opacity-60"
+                    className="rounded-full px-3 py-1.5 text-xs font-semibold text-mint-800 transition-colors hover:bg-mint-100 disabled:opacity-60"
                   >
                     {user.active ? 'Deactivate' : 'Reactivate'}
                   </button>
@@ -181,12 +181,12 @@ export default function SettingsPage() {
 
   if (!isAdmin) {
     return (
-      <div className="max-w-2xl mx-auto bg-red-50 border-2 border-red-200 rounded-2xl p-8 text-center shadow-sm">
-        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Lock size={32} className="text-red-600" />
+      <div className="max-w-xl mx-auto rounded-card border border-mint-900/8 bg-white p-10 text-center shadow-soft animate-rise">
+        <div className="mx-auto mb-5 grid size-14 place-items-center rounded-2xl bg-mint-200 text-mint-900">
+          <Lock size={26} />
         </div>
-        <h2 className="text-2xl font-bold text-red-900 mb-2">Access Denied</h2>
-        <p className="text-red-700 mb-6">System settings are only accessible to administrators.</p>
+        <h2 className="text-2xl font-bold text-mint-950 mb-2">Admins only</h2>
+        <p className="text-mint-700 mb-6">System settings are only accessible to administrators.</p>
         <Link href="/dashboard" className={buttonClass()}>
           Go to Dashboard
         </Link>
@@ -198,21 +198,12 @@ export default function SettingsPage() {
     <>
       <PageHeader eyebrow="Admin" title="System Settings" description="Company configuration and user accounts" />
 
-      <div className="bg-white rounded-2xl border border-moss-100 p-2 shadow-sm flex flex-wrap gap-2">
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            className={`flex items-center gap-2 px-4 py-2.5 font-medium rounded-lg transition-all ${
-              tab === id ? 'bg-linear-to-r from-moss-500 to-moss-600 text-white shadow-sm' : 'text-moss-700 hover:bg-moss-50'
-            }`}
-          >
-            <Icon size={18} />
-            {label}
-          </button>
-        ))}
-      </div>
+      <Segmented
+        label="Settings sections"
+        options={TABS.map(({ id, label, icon: Icon }) => ({ value: id, label, icon: <Icon size={16} /> }))}
+        value={tab}
+        onChange={setTab}
+      />
 
       {tab === 'general' &&
         (settings.data ? (
