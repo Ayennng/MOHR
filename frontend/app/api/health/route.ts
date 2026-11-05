@@ -4,26 +4,24 @@ import { BACKEND_URL } from '@/lib/backend-url';
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/health - Public check that also pings the backend, so one request (from the
- * uptime pinger or the login page) wakes both free Render services. Returns 503 when the
- * backend doesn't answer in time. The backend request keeps running after that, because
- * a sleeping free service takes about a minute to wake and an aborted request doesn't
- * wake it.
+ * GET /api/health - Public liveness check for the frontend. It also pings the backend, so
+ * a request from the uptime pinger or the login page starts waking it, but it answers 200
+ * whatever the backend does: a sleeping free service can take over a minute to wake, and
+ * an uptime pinger that keeps getting errors disables its job. The backend has its own
+ * pinger job on its own /api/health (see README).
  */
 export async function GET() {
+  // Keeps running after the response: an aborted request may not finish waking it
   const ping = fetch(`${BACKEND_URL}/api/health`, {
     cache: 'no-store',
-    signal: AbortSignal.timeout(120_000),
+    signal: AbortSignal.timeout(180_000),
   })
     .then((response) => response.ok)
     .catch(() => false);
 
-  // Answer within the uptime pinger's 30-second timeout
-  const waited = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 20_000));
-  const backend = (await Promise.race([ping, waited])) ? 'ok' : 'down';
+  // An awake backend answers in milliseconds; don't hold the pinger for a sleeping one
+  const waited = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5_000));
+  const backend = (await Promise.race([ping, waited])) ? 'ok' : 'waking';
 
-  return NextResponse.json(
-    { status: backend === 'ok' ? 'ok' : 'degraded', backend },
-    { status: backend === 'ok' ? 200 : 503, headers: { 'cache-control': 'no-store' } }
-  );
+  return NextResponse.json({ status: 'ok', backend }, { headers: { 'cache-control': 'no-store' } });
 }
