@@ -1,0 +1,24 @@
+name: Wake the Render services
+
+# Free Render services sleep overnight. This wakes both before working hours start; from
+# then on the frontend keeps itself and the backend awake until 22:00 Malaysia time
+# (frontend/lib/keep-awake.ts). If a run is late or fails, the first visitor wakes them.
+# The requests wait up to 3 minutes each, since a sleeping service takes over a minute to
+# answer. Change the URLs if you rename the services or add a custom domain.
+
+on:
+  schedule:
+    - cron: '45 23 * * 0-4' # 07:45 Malaysia time, Monday to Friday
+  workflow_dispatch:
+
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Wake the frontend and the backend
+        run: |
+          for url in https://mohr-hr.onrender.com/api/health https://mohr-backend.onrender.com/api/health; do
+            curl --fail --silent --show-error --max-time 180 --retry 3 --retry-delay 30 --retry-all-errors "$url"
+            echo
+          done

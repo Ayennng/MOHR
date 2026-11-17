@@ -3,8 +3,8 @@
 # Both apps run on Render's free plan. The database is external (e.g. Neon's free
 # Postgres, which doesn't expire like Render's free one); uploads are stored in it.
 # Free services sleep after 15 minutes without traffic and take about a minute to wake.
-# Uptime pinger jobs on each service's /api/health keep both awake in working hours
-# (see README); pinging around the clock would exceed the 750 free hours a month.
+# The frontend keeps both awake in working hours (frontend/lib/keep-awake.ts, see
+# README); staying awake around the clock would exceed the 750 free hours a month.
 
 envVarGroups:
   - name: mohr-shared

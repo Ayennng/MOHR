@@ -5,10 +5,9 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/health - Public liveness check for the frontend. It also pings the backend, so
- * a request from the uptime pinger or the login page starts waking it, but it answers 200
- * whatever the backend does: a sleeping free service can take over a minute to wake, and
- * an uptime pinger that keeps getting errors disables its job. The backend has its own
- * pinger job on its own /api/health (see README).
+ * a request from the keep-awake timer (lib/keep-awake.ts), the morning wake-up workflow or
+ * the login page keeps it awake or starts waking it. It answers 200 whatever the backend
+ * does, because a sleeping free service can take over a minute to wake.
  */
 export async function GET() {
   // Keeps running after the response: an aborted request may not finish waking it
