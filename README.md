@@ -6,7 +6,7 @@
 
 **Live demo:** [mohr-hr.onrender.com](https://mohr-hr.onrender.com). Pick **Admin**, **Manager** or **Employee** on the login page to sign in to a sample company; the data resets every night. On weekdays from 08:00 to 22:00 Malaysia time it's kept awake; outside those hours the first visit takes about a minute.
 
-**Theme**: Mint (`#C2F8CB`) with deep forest-green ink, Bricolage Grotesque + Figtree, quick soft motion. See [frontend/DESIGN.md](frontend/DESIGN.md).
+**Theme**: quiet paper-grey neutrals with green (`#C2F8CB` mint, `#134429` forest) as the trademark, Bricolage Grotesque + Figtree, quick soft motion. See [frontend/DESIGN.md](frontend/DESIGN.md).
 
 ---
 

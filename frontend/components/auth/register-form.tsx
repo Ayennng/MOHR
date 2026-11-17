@@ -63,8 +63,8 @@ export function RegisterForm() {
 
   return (
     <div>
-      <h1 className="text-4xl font-bold text-mint-950">Create Account</h1>
-      <p className="mt-2 mb-8 text-mint-700">Join us and start managing your work efficiently</p>
+      <h1 className="text-3xl font-medium text-ink-900">Create account</h1>
+      <p className="mt-1.5 mb-8 text-[15px] text-ink-600">You can sign in as soon as it is created</p>
 
       {error && (
         <div className="mb-5">
@@ -74,47 +74,47 @@ export function RegisterForm() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <div className="grid grid-cols-2 gap-4">
-          <FormField label="First Name" error={errors.firstName?.message} required>
+          <FormField label="First name" error={errors.firstName?.message} required>
             <input type="text" placeholder="John" className={inputClass} {...register('firstName')} />
           </FormField>
-          <FormField label="Last Name" error={errors.lastName?.message} required>
+          <FormField label="Last name" error={errors.lastName?.message} required>
             <input type="text" placeholder="Doe" className={inputClass} {...register('lastName')} />
           </FormField>
         </div>
 
         <FormField label="Email" error={errors.email?.message} required>
-          <input type="email" placeholder="your@email.com" className={inputClass} autoComplete="email" {...register('email')} />
+          <input type="email" placeholder="you@company.com" className={inputClass} autoComplete="email" {...register('email')} />
         </FormField>
 
         <FormField label="Password" error={errors.password?.message} required>
-          <PasswordInput placeholder="Create a strong password" autoComplete="new-password" {...register('password')} />
+          <PasswordInput placeholder="At least 8 characters, a letter and a number" autoComplete="new-password" {...register('password')} />
         </FormField>
 
-        <FormField label="Confirm Password" error={errors.confirmPassword?.message} required>
-          <PasswordInput placeholder="Confirm your password" autoComplete="new-password" {...register('confirmPassword')} />
+        <FormField label="Confirm password" error={errors.confirmPassword?.message} required>
+          <PasswordInput placeholder="Same password again" autoComplete="new-password" {...register('confirmPassword')} />
         </FormField>
 
         <div className="grid grid-cols-2 gap-4">
           <FormField label="Position" error={errors.position?.message} required>
-            <input type="text" placeholder="e.g., Developer" className={inputClass} {...register('position')} />
+            <input type="text" placeholder="Developer" className={inputClass} {...register('position')} />
           </FormField>
           <FormField label="Department" error={errors.department?.message} required>
-            <input type="text" placeholder="e.g., Finance" className={inputClass} {...register('department')} />
+            <input type="text" placeholder="Finance" className={inputClass} {...register('department')} />
           </FormField>
         </div>
 
-        <FormField label="Phone (Optional)" error={errors.phone?.message}>
+        <FormField label="Phone (optional)" error={errors.phone?.message}>
           <input type="tel" placeholder="+60 00-0000000" className={inputClass} {...register('phone')} />
         </FormField>
 
         <Button type="submit" size="lg" isLoading={isLoading} className="w-full">
-          {isLoading ? 'Creating Account...' : 'Create Account'}
+          {isLoading ? 'Creating account' : 'Create account'}
         </Button>
       </form>
 
-      <div className="mt-8 text-center text-sm text-mint-700">
+      <div className="mt-8 text-center text-sm text-ink-600">
         Already have an account?{' '}
-        <Link href="/login" className="font-semibold text-mint-900 underline decoration-mint-300 decoration-2 underline-offset-4 transition-colors hover:decoration-mint-600">
+        <Link href="/login" className="font-medium text-ink-900 underline decoration-mint-400 decoration-2 underline-offset-4 transition-colors duration-150 hover:decoration-mint-700">
           Sign in
         </Link>
       </div>

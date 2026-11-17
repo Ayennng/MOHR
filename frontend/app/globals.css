@@ -5,10 +5,13 @@
 @source "../components";
 
 /*
- * MoHR design tokens. Mint #C2F8CB (mint-200) is the signature surface; mint-900 is
- * the ink. Contrast on white: 900 = 11.1:1, 800 = 8.1:1, 700 = 5.8:1 (the lightest
- * step used for text); mint-200 on mint-900 = 9.3:1. 600 (3.9:1) is for icons, focus
- * rings and boundaries only, never for body text.
+ * MoHR design tokens. Two ramps:
+ * - ink: the neutrals (paper grey with a faint green cast). Every surface, border and
+ *   piece of text. On white: 900 = 17.8:1 (primary text), 600 = 7.7:1 (secondary),
+ *   500 = 5.1:1 (muted, the lightest text step). 400 and below never carry text.
+ * - mint: the brand, used sparingly as the trademark: the leaf mark, the active nav
+ *   pill, primary buttons, the selected tab, focus, "good" status and the Today panel.
+ *   mint-200 on mint-900 = 9.3:1, on mint-950 = 13.2:1.
  */
 @theme {
   --color-mint-50: #f3fef5;
@@ -22,24 +25,38 @@
   --color-mint-800: #185b33;
   --color-mint-900: #134429;
   --color-mint-950: #0a2817;
-  --color-ground: #f6fbf7;
+
+  --color-ink-50: #f6f7f6;
+  --color-ink-100: #eef0ee;
+  --color-ink-200: #e1e4e1;
+  --color-ink-300: #c6cbc7;
+  --color-ink-400: #959c97;
+  --color-ink-500: #677069;
+  --color-ink-600: #4d5550;
+  --color-ink-700: #363d38;
+  --color-ink-800: #232825;
+  --color-ink-900: #151916;
+  --color-ink-950: #0c0f0d;
+  --color-ground: #f6f7f6;
 
   --font-display: var(--font-bricolage), "Segoe UI", system-ui, sans-serif;
   --font-sans: var(--font-figtree), "Segoe UI", system-ui, -apple-system, sans-serif;
 
-  --radius-card: 1.25rem;
+  /* Cards 16, the Today panel and modals 20; inputs 12; controls are pills */
+  --radius-card: 1rem;
+  --radius-panel: 1.25rem;
 
-  --shadow-soft: 0 1px 2px rgb(19 68 41 / 0.05), 0 6px 20px -10px rgb(19 68 41 / 0.18);
-  --shadow-lift: 0 2px 4px rgb(19 68 41 / 0.06), 0 16px 36px -14px rgb(19 68 41 / 0.28);
+  /* Neutral depth: a hairline does most of the work, shadows stay small */
+  --shadow-soft: 0 1px 2px rgb(21 25 22 / 0.04);
+  --shadow-lift: 0 2px 4px rgb(21 25 22 / 0.04), 0 12px 32px -8px rgb(21 25 22 / 0.14);
 
-  /* Motion: four durations, three easings. Everything animates transform and opacity only. */
+  /* Motion: one easing for everything, four durations. Only transform and opacity animate. */
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
-  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
 
   --animate-rise: rise 320ms var(--ease-out-soft) both;
   --animate-fade: fade 200ms var(--ease-out-soft) both;
-  --animate-pop: pop 320ms var(--ease-pop) both;
+  --animate-pop: pop 240ms var(--ease-out-soft) both;
 
   @keyframes rise {
     from {
@@ -55,7 +72,7 @@
   @keyframes pop {
     from {
       opacity: 0;
-      transform: scale(0.94);
+      transform: scale(0.96);
     }
   }
 }
@@ -75,15 +92,14 @@ body {
 
 body {
   background: var(--color-ground);
-  color: var(--color-mint-900);
+  color: var(--color-ink-900);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1,
-h2,
-h3 {
+/* Page titles use the display face; card and section titles stay in Figtree */
+h1 {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
 }
@@ -132,12 +148,12 @@ h3 {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-mint-200);
+  background: var(--color-ink-200);
   border: 3px solid var(--color-ground);
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-mint-300);
+  background: var(--color-ink-300);
 }
 
 /* Reduced motion: everything settles instantly, nothing moves */

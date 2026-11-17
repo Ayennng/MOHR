@@ -50,18 +50,18 @@ export default function AttendanceConfirmationModal({
   if (!type) return null;
 
   const isCheckIn = type === 'checkin';
-  const title = isCheckIn ? 'Check In' : 'Check Out';
+  const action = isCheckIn ? 'check in' : 'check out';
   const Icon = isCheckIn ? LogIn : LogOut;
 
   return (
-    <Modal isOpen onClose={() => (release(), onClose())} title={`${title} Confirmation`}>
+    <Modal isOpen onClose={() => (release(), onClose())} title={isCheckIn ? 'Confirm check in' : 'Confirm check out'}>
       <div className="space-y-6">
-        <div className="rounded-2xl bg-mint-100 p-4 text-center">
-          <p className="text-sm text-mint-700 font-semibold">Current Time</p>
-          <LiveClock className="font-display text-3xl font-bold tabular-nums text-mint-950" />
+        <div className="rounded-xl bg-ink-50 p-4 text-center">
+          <p className="text-xs text-ink-500">Current time</p>
+          <LiveClock className="mt-1 font-display text-3xl font-medium tabular-nums text-ink-900" />
         </div>
 
-        <p className="text-center text-mint-800">
+        <p className="text-center text-[15px] text-ink-600">
           {isCheckIn
             ? 'You are about to check in for today. This will record your arrival time.'
             : 'You are about to check out. This will end your work session for today.'}
@@ -72,7 +72,7 @@ export default function AttendanceConfirmationModal({
           onPointerDown={hold}
           onPointerUp={release}
           onPointerLeave={release}
-          className={`relative w-full overflow-hidden rounded-full py-4 text-lg font-bold select-none touch-none transition-transform duration-200 ease-out-soft ${
+          className={`relative h-13 w-full overflow-hidden rounded-full text-[15px] font-medium select-none touch-none transition-transform duration-150 ease-out-soft ${
             heldSince ? 'scale-[0.97]' : ''
           } ${isCheckIn ? 'bg-mint-900 text-mint-200' : 'bg-red-600 text-white'}`}
         >
@@ -83,8 +83,8 @@ export default function AttendanceConfirmationModal({
             style={{ transform: `scaleX(${progress / 100})` }}
           />
           <span className="relative flex items-center justify-center gap-2">
-            <Icon size={24} />
-            {heldSince ? `Keep holding... ${Math.ceil(progress)}%` : `Hold for 2 seconds to ${title.toLowerCase()}`}
+            <Icon size={18} />
+            {heldSince ? `Keep holding, ${Math.ceil(progress)}%` : `Hold for 2 seconds to ${action}`}
           </span>
         </button>
       </div>

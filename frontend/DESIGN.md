@@ -1,37 +1,63 @@
 # MoHR design system
 
-Calm and airy. Pale mint `#C2F8CB` is the signature surface; a deep forest-green ink carries
-text and primary actions. Tokens live in `app/globals.css` (`@theme`); components in
-`components/ui`. Use these, never raw hex values or other palettes, except the semantic tints below.
+Steady, kind, exact. The chrome is quiet paper grey; **green is the trademark** and appears only
+where it means something: the leaf mark, the page you are on, the main action, "good" status and
+the Today panel. Tokens live in `app/globals.css` (`@theme`); components in `components/ui`. Use
+these, never raw hex values or other palettes, except the semantic tints below.
 
 ## Colour
 
+Two ramps. `ink-*` carries every surface, border and piece of text. `mint-*` is the brand.
+
 | Token | Hex | Use |
 |---|---|---|
-| `mint-50` | `#F3FEF5` | Hover wash, table header |
-| `mint-100` | `#E2FDE7` | Chips, quiet fills, tracks |
-| `mint-200` | `#C2F8CB` | **Brand.** Page banners, active nav pill, secondary buttons, text on ink |
-| `mint-300`-`500` | | Bars, dots, decoration (never text) |
-| `mint-600` | `#23934A` | Focus ring, icons, boundaries (3.9:1 on white, not for body text) |
-| `mint-700` | `#1C743D` | Muted text, hints (5.8:1 on white, the lightest text step) |
-| `mint-800` | `#185B33` | Secondary text on mint |
-| `mint-900` | `#134429` | Body ink, primary buttons (11.1:1 on white; `mint-200` on it is 9.3:1) |
-| `mint-950` | `#0A2817` | Headings, the attendance clock panel |
-| `ground` | `#F6FBF7` | Page background |
+| `ink-50` / `ground` | `#F6F7F6` | Page background, hover rows, table header, quiet fills |
+| `ink-100` | `#EEF0EE` | Tracks, icon tiles, ghost hover |
+| `ink-300` | `#C6CBC7` | Chart neutrals, decoration (never text) |
+| `ink-400` | `#959C97` | Placeholders, idle icons (never body text) |
+| `ink-500` | `#677069` | Muted text: hints, meta, labels (5.1:1 on white, the lightest text step) |
+| `ink-600` | `#4D5550` | Secondary text (7.7:1) |
+| `ink-900` | `#151916` | Primary text and titles (17.8:1) |
+| `ink-900/8` | | Hairline borders; `/6` between rows, `/12` on inputs and outline buttons |
+| `mint-200` | `#C2F8CB` | Active nav pill, selected tab, avatar, sign-in panel, text on forest |
+| `mint-500` | `#34B85A` | The one highlighted value in a chart, progress that shows what's left |
+| `mint-600` | `#23934A` | Focus ring and focused input border |
+| `mint-900` | `#134429` | Primary buttons (with `mint-200` text, 9.3:1), current page number |
+| `mint-950` | `#0A2817` | The Today panel and the attendance clock panel |
 
-Semantic tints use Tailwind's `rose`, `amber`, `sky` and `stone` as `-100` fill + `-800` text
+Where green may appear: the leaf mark, the active nav pill and selected `Segmented` option,
+primary buttons, the current page in `Pagination`, the leave count in the sidebar, focus, the
+`success` badge and alert, the forest panels, and one highlight per chart. Anywhere else, use ink.
+
+Semantic tints use Tailwind's `rose`, `amber` and `sky` as a `-50`/`-100` fill with `-800` text
 (see `components/ui/badge.tsx`). Destructive confirm buttons use `red-600`.
 
 ## Type
 
-- Display: **Bricolage Grotesque** (`font-display`, all `h1`-`h3`), bold, tracking -0.02em.
-- Body: **Figtree** (`font-sans`). Numbers that change use `tabular-nums`.
-- Both are self-hosted by `next/font` (no browser request to Google).
+- Display: **Bricolage Grotesque** (`font-display`), weight 500. Page titles (`h1`, 30px,
+  tracking -0.02em), big figures (stats, clocks) and the wordmark.
+- Body: **Figtree** (`font-sans`) for everything else. Card and modal titles are Figtree 600 at
+  16-18px. Body 14-15px, meta 12-13px.
+- Weights 400 and 500, with 600 for card titles only. No 700 or heavier anywhere.
+- Sentence case for every title, label, button and column header. No uppercase tracked labels.
+- Numbers that change use `tabular-nums`.
 
 ## Shape and depth
 
-- Cards: `rounded-card` (20px), white, `border-mint-900/8`, `shadow-soft`; `shadow-lift` on hover.
-- Buttons, badges, tabs, pagination: fully round pills. Inputs: `rounded-xl`.
+- Cards: `rounded-card` (16px), white, `border-ink-900/8`, `shadow-soft` (a 1px neutral shadow),
+  24px padding. Tables inside a card run to its edges.
+- Forest panels and modals: `rounded-panel` (20px). Inputs: `rounded-xl` (12px).
+- Buttons, badges, tabs, pagination and nav rows: fully round pills.
+- Stats sit in one panel split by hairlines (`<Stats>` + `<StatCard>`): a label, a figure, a hint.
+  No icons, no tinted tiles.
+- `shadow-lift` only for things that float: modals, menus, tooltips.
+
+## Layout
+
+- Full-height sidebar (248px, 72px collapsed): leaf mark, navigation (36px rows, 18px icons),
+  account menu at the foot. Icon centres line up 36px from the left edge in both states.
+- Content capped at 1440px with 40px side padding on desktop. Pages start with `PageHeader`
+  (title, description, one action on the right).
 
 ## Motion
 
@@ -39,15 +65,14 @@ Quick and soft, never in the way. Only `transform` and `opacity` animate.
 
 | | Value |
 |---|---|
-| Durations | press 120ms, hover 200ms, enter 320ms, feature 600ms (count-up, bars, check-in burst) |
-| Easings | `ease-out-soft` cubic-bezier(0.22,1,0.36,1); `ease-in-out-soft`; `ease-pop` (overshoot, only for pops) |
-| Entrances | `animate-rise` (10px up + fade), `animate-fade`, `animate-pop` (scale .94 + fade) |
+| Durations | press/hover 150ms, enter 240-320ms, feature 600ms (count-up, bars, check-in burst) |
+| Easing | `ease-out-soft` cubic-bezier(0.22,1,0.36,1) for everything |
+| Entrances | `animate-rise` (10px up + fade), `animate-fade`, `animate-pop` (scale .96 + fade, no overshoot) |
 | Stagger | put `stagger` on a parent: children rise 45ms apart. Every page's sections do this via `app/(app)/template.tsx` |
-| Hover | cards lift 4px; icon chips tilt; arrows nudge 4px right |
+| Hover | a colour or surface step. Arrows may nudge 2px. Nothing lifts, tilts or scales |
 | Press | buttons scale to 0.97 |
-| Signature | sliding mint pill in the sidebar and `Segmented`; stats count up (`lib/use-count-up.ts`); attendance-grid wave on login; burst on check-in |
+| Signature | the sliding mint pill in the sidebar and `Segmented`; stats count up (`lib/use-count-up.ts`); the attendance-grid wave on sign-in; the burst on check-in |
 
 Forbidden: animating layout properties (the sidebar collapse is the one exception), looping
-decoration, bounce on anything but small pops, gradient text, frosted-glass panels (a modal
-backdrop is the only blur). `prefers-reduced-motion` turns every animation off (`globals.css`)
-and makes counters jump.
+decoration, bounce or overshoot, hover lifts, gradient text, glows, blur. `prefers-reduced-motion`
+turns every animation off (`globals.css`) and makes counters jump.

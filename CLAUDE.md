@@ -32,8 +32,9 @@ a large change. `backend/BACKEND_DOCUMENTATION.md` documents every API route, an
 
 - Fetch with `api()` / `useApi()` from `lib/api.ts`. Don't add new proxy routes.
 - Build pages from `components/ui` (Button, Field, Table, Modal, ...) before writing new markup.
-- Use the `mint-*` theme tokens from `app/globals.css`, never raw hex values. Animate only
-  `transform` and `opacity`. Full rules: `frontend/DESIGN.md`.
+- Use the theme tokens from `app/globals.css`, never raw hex values: `ink-*` for surfaces, borders
+  and text, `mint-*` (the brand green) only where DESIGN.md allows it. Animate only `transform` and
+  `opacity`. Full rules: `frontend/DESIGN.md`.
 - TypeScript is strict: no `any`. Fix the type instead of casting around an error.
 
 ## Checking your work

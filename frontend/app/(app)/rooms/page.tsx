@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { Plus, MapPin, Users, Clock, Calendar } from 'lucide-react';
+import { Plus, MapPin, Users, CalendarX } from 'lucide-react';
 import { api, useApi } from '@/lib/api';
 import { formatDate, formatTime } from '@/lib/format';
 import { Alert, Button, Card, Field, Modal, ModalActions, PageHeader, SectionTitle, inputClass } from '@/components/ui';
@@ -65,57 +65,46 @@ function useFormState<T>(empty: T) {
 }
 
 function RoomCard({ room, onBook }: { room: Room; onBook: () => void }) {
+  const status = !room.bookable
+    ? { dot: 'bg-ink-300', text: 'Out of service' }
+    : room.inUseNow
+      ? { dot: 'bg-amber-500', text: 'In use' }
+      : { dot: 'bg-mint-500', text: 'Free now' };
+
   return (
     <div
-      className={`group flex flex-col gap-5 rounded-card border border-mint-900/8 p-6 transition-[transform,box-shadow] duration-200 ease-out-soft ${
-        room.bookable ? 'bg-white shadow-soft hover:-translate-y-1 hover:shadow-lift' : 'bg-stone-50 opacity-70'
+      className={`flex flex-col rounded-card border p-5 transition-colors duration-150 ${
+        room.bookable ? 'border-ink-900/8 bg-white shadow-soft hover:border-ink-900/16' : 'border-ink-900/6 bg-ink-50'
       }`}
     >
-      <div>
-        {room.bookable && (
-          <span
-            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-              room.inUseNow ? 'bg-amber-100 text-amber-800' : 'bg-mint-100 text-mint-800'
-            }`}
-          >
-            <span aria-hidden className={`size-1.5 rounded-full ${room.inUseNow ? 'bg-amber-500' : 'bg-mint-500'}`} />
-            {room.inUseNow ? 'In use' : 'Free now'}
-          </span>
-        )}
-        <h3 className="mt-3 text-lg font-bold text-mint-950">{room.name}</h3>
-        <p className="mt-1 flex items-center gap-1 text-sm text-mint-700">
+      <div className="flex items-start justify-between gap-3">
+        <h3 className={`text-base font-semibold ${room.bookable ? 'text-ink-900' : 'text-ink-500'}`}>{room.name}</h3>
+        <span className="mt-0.5 inline-flex shrink-0 items-center gap-1.5 text-[13px] text-ink-600">
+          <span aria-hidden className={`size-1.5 rounded-full ${status.dot}`} />
+          {status.text}
+        </span>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-ink-500">
+        <span className="inline-flex items-center gap-1.5">
           <MapPin size={14} />
           {room.location}
-        </p>
+        </span>
+        <span className="inline-flex items-center gap-1.5 tabular-nums">
+          <Users size={14} />
+          {room.capacity} seats
+        </span>
       </div>
 
-      <p className="flex items-center gap-2 text-sm font-semibold text-mint-900">
-        <span className="grid size-8 place-items-center rounded-xl bg-mint-100 text-mint-800">
-          <Users size={16} />
-        </span>
-        Seats {room.capacity}
-      </p>
+      {room.amenities.length > 0 && <p className="mt-3 text-[13px] text-ink-600">{room.amenities.join(' · ')}</p>}
 
-      {room.amenities.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {room.amenities.map((amenity) => (
-            <span key={amenity} className="rounded-full border border-mint-900/10 px-2.5 py-1 text-xs font-medium text-mint-800">
-              {amenity}
-            </span>
-          ))}
+      {room.bookable && (
+        <div className="mt-auto pt-5">
+          <Button size="sm" variant="outline" className="w-full" onClick={onBook}>
+            Book
+          </Button>
         </div>
       )}
-
-      <div className="mt-auto">
-        {room.bookable ? (
-          <Button size="sm" variant="secondary" className="w-full" onClick={onBook}>
-            <Plus size={16} />
-            Book Room
-          </Button>
-        ) : (
-          <p className="rounded-full bg-stone-100 py-1.5 text-center text-sm font-semibold text-stone-700">Out of service</p>
-        )}
-      </div>
     </div>
   );
 }
@@ -182,14 +171,13 @@ export default function RoomsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Facilities"
-        title="Room Booking"
-        description="Book meeting rooms and conference facilities"
+        title="Room booking"
+        description="See which rooms are free and reserve one for a meeting"
         action={
           isAdmin && (
-            <Button size="lg" onClick={() => setAddingRoom(true)}>
-              <Plus size={20} />
-              Add Room
+            <Button onClick={() => setAddingRoom(true)}>
+              <Plus size={16} />
+              Add room
             </Button>
           )
         }
@@ -197,21 +185,24 @@ export default function RoomsPage() {
 
       {(rooms.error || bookings.error) && <Alert>Could not load rooms. Please refresh the page.</Alert>}
 
-      <section className="space-y-6">
-        <div className="flex items-center justify-between">
-          <SectionTitle>Rooms</SectionTitle>
-          <span className="rounded-full bg-mint-200 px-4 py-1.5 text-sm font-semibold text-mint-900">
-            {roomList.filter((r) => r.bookable && !r.inUseNow).length} Free Now
-          </span>
-        </div>
+      <section className="space-y-3">
+        <SectionTitle
+          description={
+            rooms.data
+              ? `${roomList.filter((r) => r.bookable && !r.inUseNow).length} of ${roomList.length} free right now`
+              : ' '
+          }
+        >
+          Rooms
+        </SectionTitle>
 
         {!rooms.loading && roomList.length === 0 && !rooms.error && (
-          <p className="text-mint-700">
-            No rooms yet.{isAdmin ? ' Use "Add Room" to create one.' : ' Ask an administrator to add rooms.'}
+          <p className="text-[15px] text-ink-600">
+            No rooms yet.{isAdmin ? ' Use Add room to create one.' : ' Ask an administrator to add rooms.'}
           </p>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 stagger">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 stagger">
           {roomList.map((room) => (
             <RoomCard key={room.id} room={room} onBook={() => openBooking(room)} />
           ))}
@@ -219,33 +210,37 @@ export default function RoomsPage() {
       </section>
 
       <Card
-        title="My Bookings"
+        title="My bookings"
         description={`${myBookings.length} upcoming ${myBookings.length === 1 ? 'booking' : 'bookings'}`}
       >
         {myBookings.length === 0 ? (
-          <div className="text-center py-12 text-mint-700">
-            <Clock className="mx-auto mb-4" size={32} />
-            <p className="font-medium">No upcoming bookings</p>
+          <div className="py-10 text-center text-ink-500">
+            <CalendarX className="mx-auto mb-3 text-ink-300" size={24} />
+            <p className="text-sm">No upcoming bookings</p>
           </div>
         ) : (
-          <div className="space-y-3 stagger">
+          <ul className="-my-3 divide-y divide-ink-900/6">
             {myBookings.map((b) => (
-              <div key={b.id} className="rounded-2xl border border-mint-900/8 p-4 transition-colors duration-200 hover:bg-mint-50">
-                <h3 className="font-semibold text-mint-950">{b.roomName}</h3>
-                <div className="flex flex-wrap gap-3 mt-2 text-sm text-mint-700 font-medium">
-                  <span className="flex items-center gap-1">
-                    <Calendar size={14} />
-                    {formatDate(b.date, { weekday: 'short', month: 'short', day: 'numeric' })}
+              <li key={b.id} className="flex items-center gap-4 py-3">
+                <div className="grid w-12 shrink-0 rounded-xl border border-ink-900/8 bg-ink-50 py-1.5 text-center leading-tight">
+                  <span className="text-[11px] text-ink-500">{formatDate(b.date, { weekday: 'short' })}</span>
+                  <span className="font-display text-lg font-medium tabular-nums text-ink-900">
+                    {formatDate(b.date, { day: 'numeric' })}
                   </span>
-                  <span className="flex items-center gap-1">
-                    <Clock size={14} />
-                    {formatTime(b.startTime)} - {formatTime(b.endTime)}
-                  </span>
-                  <span className="rounded-full bg-mint-100 px-2.5 py-0.5 text-xs text-mint-900">{b.purpose}</span>
                 </div>
-              </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-ink-900">{b.roomName}</p>
+                  <p className="mt-0.5 truncate text-[13px] text-ink-500">
+                    <span className="tabular-nums">
+                      {formatDate(b.date, { month: 'short', day: 'numeric' })}, {formatTime(b.startTime)}–{formatTime(b.endTime)}
+                    </span>
+                    <span className="text-ink-300"> · </span>
+                    {b.purpose}
+                  </p>
+                </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </Card>
 
@@ -256,15 +251,15 @@ export default function RoomsPage() {
             <input type="date" min={new Date().toISOString().slice(0, 10)} {...booking.bind('date')} />
           </Field>
           <div className="grid grid-cols-2 gap-4">
-            <Field label="Start Time">
+            <Field label="Start time">
               <input type="time" {...booking.bind('startTime')} />
             </Field>
-            <Field label="End Time">
+            <Field label="End time">
               <input type="time" {...booking.bind('endTime')} />
             </Field>
           </div>
           <Field label="Purpose">
-            <textarea rows={3} maxLength={200} placeholder="Meeting purpose or agenda" {...booking.bind('purpose')} />
+            <textarea rows={3} maxLength={200} placeholder="What the meeting is for" {...booking.bind('purpose')} />
           </Field>
         </div>
         <ModalActions>
@@ -272,12 +267,12 @@ export default function RoomsPage() {
             Cancel
           </Button>
           <Button onClick={handleBook} isLoading={booking.saving}>
-            Confirm Booking
+            Confirm booking
           </Button>
         </ModalActions>
       </Modal>
 
-      <Modal isOpen={addingRoom} onClose={() => setAddingRoom(false)} title="Add Room">
+      <Modal isOpen={addingRoom} onClose={() => setAddingRoom(false)} title="Add room">
         <div className="space-y-4">
           <Alert>{newRoom.error}</Alert>
           <Field label="Name">
@@ -291,7 +286,7 @@ export default function RoomsPage() {
               <input placeholder="Level 3" {...newRoom.bind('location')} />
             </Field>
           </div>
-          <Field label="Amenities (comma-separated)">
+          <Field label="Amenities" hint="Separate with commas">
             <input placeholder="Projector, Whiteboard" {...newRoom.bind('amenities')} />
           </Field>
         </div>
@@ -300,7 +295,7 @@ export default function RoomsPage() {
             Cancel
           </Button>
           <Button onClick={handleAddRoom} isLoading={newRoom.saving}>
-            Add Room
+            Add room
           </Button>
         </ModalActions>
       </Modal>

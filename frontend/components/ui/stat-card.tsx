@@ -2,18 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { ArrowUpRight } from 'lucide-react';
 import { useCountUp } from '@/lib/use-count-up';
-
-// Each tone: icon chip, value ink, progress fill. Labels and hints stay mint-700 (5.8:1).
-const tones = {
-  mint: { chip: 'bg-mint-200 text-mint-900', value: 'text-mint-900', fill: 'bg-mint-500', track: 'bg-mint-100' },
-  ink: { chip: 'bg-mint-900 text-mint-200', value: 'text-mint-900', fill: 'bg-mint-800', track: 'bg-mint-100' },
-  sky: { chip: 'bg-sky-100 text-sky-800', value: 'text-mint-900', fill: 'bg-sky-500', track: 'bg-sky-100' },
-  amber: { chip: 'bg-amber-100 text-amber-800', value: 'text-mint-900', fill: 'bg-amber-500', track: 'bg-amber-100' },
-  rose: { chip: 'bg-rose-100 text-rose-800', value: 'text-mint-900', fill: 'bg-rose-500', track: 'bg-rose-100' },
-};
-
-export type StatTone = keyof typeof tones;
 
 /** A number that counts up to its value; anything else is shown as it is. */
 function AnimatedValue({ value }: { value: React.ReactNode }) {
@@ -21,61 +11,69 @@ function AnimatedValue({ value }: { value: React.ReactNode }) {
   return <>{typeof value === 'number' ? counted : value}</>;
 }
 
+const columns = {
+  2: 'sm:grid-cols-2',
+  3: 'sm:grid-cols-3',
+  4: 'sm:grid-cols-2 lg:grid-cols-4',
+};
+
 /**
- * One headline number. `progress` (0-100) adds a bar that grows in; `href` makes the
- * whole card a link to the section it summarises.
+ * One panel of StatCards split by hairlines. The 1px gap shows the border colour
+ * behind the cells, so the lines stay right at every breakpoint.
+ */
+export function Stats({ cols = 4, className = '', children }: { cols?: 2 | 3 | 4; className?: string; children: React.ReactNode }) {
+  return (
+    <div
+      className={`grid grid-cols-1 gap-px overflow-hidden rounded-card border border-ink-900/8 bg-ink-900/8 shadow-soft stagger ${columns[cols]} ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * One headline number, inside `Stats`: a label, the figure and what it means.
+ * `progress` (0-100) adds a thin bar; `href` makes the cell a link to its section.
  */
 export function StatCard({
   label,
   value,
-  icon,
-  tone = 'mint',
   hint,
-  badge,
   progress,
   href,
 }: {
   label: string;
   value: React.ReactNode;
-  icon: React.ReactNode;
-  tone?: StatTone;
   hint?: React.ReactNode;
-  badge?: React.ReactNode;
   progress?: number;
   href?: string;
 }) {
-  const t = tones[tone];
-  const className =
-    'group block rounded-card bg-white p-6 border border-mint-900/8 shadow-soft ' +
-    'transition-[transform,box-shadow] duration-200 ease-out-soft ' +
-    (href ? 'hover:-translate-y-1 hover:shadow-lift' : '');
-
   const content = (
     <>
-      <div className="flex items-start justify-between mb-5">
-        <div className={`grid place-items-center size-11 rounded-2xl transition-transform duration-200 ease-out-soft group-hover:-rotate-6 ${t.chip}`}>
-          {icon}
-        </div>
-        {badge && <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-mint-100 text-mint-800">{badge}</span>}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm text-ink-600">{label}</p>
+        {href && (
+          <ArrowUpRight size={16} className="text-ink-400 transition-colors duration-150 group-hover:text-ink-900" />
+        )}
       </div>
-      <p className="text-sm font-medium text-mint-700">{label}</p>
-      <p className={`font-display text-4xl font-bold mt-1 tabular-nums ${t.value}`}>
+      <p className="mt-3 font-display text-[32px] leading-none font-medium tabular-nums text-ink-900">
         <AnimatedValue value={value} />
       </p>
       {progress !== undefined && (
-        <div className={`mt-4 h-2 w-full rounded-full overflow-hidden ${t.track}`}>
+        <div className="mt-4 h-1 w-full overflow-hidden rounded-full bg-ink-100">
           <div
-            className={`h-full w-full rounded-full origin-left transition-transform duration-[600ms] ease-out-soft ${t.fill}`}
+            className="h-full w-full origin-left rounded-full bg-mint-500 transition-transform duration-600 ease-out-soft"
             style={{ transform: `scaleX(${Math.min(100, Math.max(0, progress)) / 100})` }}
           />
         </div>
       )}
-      {hint && <p className="text-xs mt-3 text-mint-700">{hint}</p>}
+      {hint && <p className="mt-3 text-[13px] text-ink-500">{hint}</p>}
     </>
   );
 
+  const className = 'group flex flex-col bg-white p-5';
   return href ? (
-    <Link href={href} className={className}>
+    <Link href={href} className={`${className} transition-colors duration-150 hover:bg-ink-50`}>
       {content}
     </Link>
   ) : (

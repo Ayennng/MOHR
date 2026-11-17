@@ -12,7 +12,7 @@ function pageNumbers(current: number, total: number): (number | '...')[] {
 }
 
 const pill =
-  'grid size-9 place-items-center rounded-full text-sm font-semibold transition-[background-color,color,transform] duration-200 ease-out-soft active:scale-95';
+  'grid size-8 place-items-center rounded-full text-[13px] font-medium tabular-nums transition-[background-color,color,transform] duration-150 ease-out-soft active:scale-95';
 
 export function Pagination({
   page,
@@ -28,22 +28,22 @@ export function Pagination({
   const totalPages = Math.ceil(total / pageSize);
   if (totalPages <= 1) return null;
 
-  const arrow = `${pill} text-mint-800 hover:bg-mint-100 disabled:opacity-40 disabled:pointer-events-none`;
+  const arrow = `${pill} text-ink-500 hover:bg-ink-100 hover:text-ink-900 disabled:opacity-40 disabled:pointer-events-none`;
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
-      <p className="text-sm text-mint-700">
-        Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total}
+    <div className="mt-5 flex flex-col items-center justify-between gap-4 sm:flex-row">
+      <p className="text-sm tabular-nums text-ink-500">
+        {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total}
       </p>
 
       <div className="flex items-center gap-1">
         <button type="button" onClick={() => onPageChange(page - 1)} disabled={page === 1} className={arrow} aria-label="Previous page">
-          <ChevronLeft size={18} />
+          <ChevronLeft size={16} />
         </button>
         {pageNumbers(page, totalPages).map((n, i) =>
           n === '...' ? (
-            <span key={`gap-${i}`} className="px-1 text-mint-700">
-              ...
+            <span key={`gap-${i}`} className="px-1 text-ink-400">
+              …
             </span>
           ) : (
             <button
@@ -51,14 +51,14 @@ export function Pagination({
               type="button"
               onClick={() => onPageChange(n)}
               aria-current={n === page ? 'page' : undefined}
-              className={`${pill} ${n === page ? 'bg-mint-900 text-mint-200' : 'text-mint-800 hover:bg-mint-100'}`}
+              className={`${pill} ${n === page ? 'bg-mint-900 text-mint-200' : 'text-ink-600 hover:bg-ink-100 hover:text-ink-900'}`}
             >
               {n}
             </button>
           )
         )}
         <button type="button" onClick={() => onPageChange(page + 1)} disabled={page === totalPages} className={arrow} aria-label="Next page">
-          <ChevronRight size={18} />
+          <ChevronRight size={16} />
         </button>
       </div>
     </div>

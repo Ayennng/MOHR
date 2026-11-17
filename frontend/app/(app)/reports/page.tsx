@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { BarChart3, Users, Calendar, TrendingUp } from 'lucide-react';
 import { useApi } from '@/lib/api';
-import { Alert, Card, PageHeader, PageSpinner, Segmented, StatCard } from '@/components/ui';
+import { Alert, Card, PageHeader, PageSpinner, Segmented, StatCard, Stats } from '@/components/ui';
 
 interface ReportData {
   metrics: {
@@ -19,122 +18,180 @@ interface ReportData {
 }
 
 const PERIODS = [
-  { value: 'week', label: 'Last 7 Days' },
-  { value: 'month', label: 'Last Month' },
-  { value: 'quarter', label: 'Last Quarter' },
-  { value: 'year', label: 'Last Year' },
+  { value: 'week', label: 'Last 7 days' },
+  { value: 'month', label: 'Last month' },
+  { value: 'quarter', label: 'Last quarter' },
+  { value: 'year', label: 'Last year' },
 ] as const;
 
-const BAR_COLORS = ['bg-mint-800', 'bg-mint-500', 'bg-sky-500', 'bg-amber-500', 'bg-rose-400', 'bg-mint-300'];
+// A day at or above this attendance rate is drawn in green
+const GOOD_RATE = 96;
 
-/** A labelled bar. It grows from the left (scaleX) when its value arrives or changes. */
-function Bar({ label, value, width, color }: { label: string; value: string | number; width: number; color: string }) {
+const clamp = (n: number) => Math.min(100, Math.max(0, n));
+
+/** Attendance for the last five working days: one column per day, green when the day was full. */
+function AttendanceChart({ days }: { days: ReportData['weeklyTrend'] }) {
   return (
     <div>
-      <div className="flex justify-between items-center mb-2">
-        <span className="text-sm font-semibold text-mint-950">{label}</span>
-        <span className="text-sm font-semibold tabular-nums text-mint-800">{value}</span>
+      <div className="relative mt-6 h-60">
+        {/* Grid: 100, 50 and 0%, labels on the left */}
+        {[100, 50, 0].map((line) => (
+          <div key={line} className="absolute inset-x-0 flex translate-y-1/2 items-center gap-3" style={{ bottom: `${line}%` }}>
+            <span className="w-8 text-right text-xs tabular-nums text-ink-400">{line}%</span>
+            <span className={`h-px flex-1 ${line === 0 ? 'bg-ink-900/12' : 'bg-ink-900/6'}`} />
+          </div>
+        ))}
+
+        <div className="absolute inset-y-0 right-0 left-11 flex justify-around gap-3">
+          {days.map((day) => {
+            const good = day.rate >= GOOD_RATE;
+            return (
+              <div key={day.date} className="relative h-full w-full max-w-14">
+                <div
+                  className={`absolute inset-x-0 bottom-0 h-full origin-bottom rounded-t-md transition-transform duration-600 ease-out-soft ${
+                    good ? 'bg-mint-500' : 'bg-ink-300'
+                  }`}
+                  style={{ transform: `scaleY(${clamp(day.rate) / 100})` }}
+                />
+                <span
+                  className="absolute inset-x-0 text-center text-xs font-medium tabular-nums text-ink-700 animate-fade"
+                  style={{ bottom: `calc(${clamp(day.rate)}% + 6px)` }}
+                >
+                  {day.rate}%
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
-      <div className="h-2.5 w-full rounded-full bg-mint-100 overflow-hidden">
-        <div
-          className={`h-full w-full rounded-full origin-left transition-transform duration-[600ms] ease-out-soft ${color}`}
-          style={{ transform: `scaleX(${Math.min(100, Math.max(0, width)) / 100})` }}
-        />
+
+      <div className="mt-2 ml-11 flex justify-around gap-3">
+        {days.map((day) => (
+          <span key={day.date} className="w-full max-w-14 text-center text-xs text-ink-500">
+            {day.day}
+          </span>
+        ))}
       </div>
+
+      <p className="mt-5 flex items-center gap-4 text-xs text-ink-500">
+        <span className="inline-flex items-center gap-1.5">
+          <span aria-hidden className="size-2 rounded-sm bg-mint-500" />
+          {GOOD_RATE}% or more checked in
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span aria-hidden className="size-2 rounded-sm bg-ink-300" />
+          Below {GOOD_RATE}%
+        </span>
+      </p>
     </div>
   );
 }
+
+const LEAVE_PARTS = [
+  { key: 'approved', label: 'Approved', color: 'bg-mint-500' },
+  { key: 'pending', label: 'Pending', color: 'bg-amber-400' },
+  { key: 'rejected', label: 'Rejected', color: 'bg-rose-400' },
+  { key: 'cancelled', label: 'Cancelled', color: 'bg-ink-300' },
+] as const;
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState<(typeof PERIODS)[number]['value']>('month');
   const { data: report, error, loading } = useApi<ReportData>(`/api/reports?period=${period}`);
   const periodLabel = PERIODS.find((p) => p.value === period)!.label.toLowerCase();
 
+  const departments = [...(report?.departmentStats ?? [])].sort((a, b) => b.count - a.count);
+  const leave = report?.leaveStats;
+  const leaveTotal = leave ? leave.approved + leave.pending + leave.rejected + leave.cancelled : 0;
+
   return (
     <>
-      <PageHeader eyebrow="Analytics" title="Reports & Analytics" description="HR metrics across the company" />
-
-      <Segmented label="Report period" options={PERIODS} value={period} onChange={setPeriod} />
+      <PageHeader
+        title="Reports"
+        description="Headcount, attendance and leave across the company"
+        action={<Segmented label="Report period" options={PERIODS} value={period} onChange={setPeriod} />}
+      />
 
       {error && <Alert>Failed to load report data: {error}</Alert>}
 
       {!report ? (
-        loading && <PageSpinner label="Loading report data..." />
+        loading && <PageSpinner label="Loading report" />
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 stagger">
+          <Stats cols={4}>
             <StatCard
-              label="Active Employees"
+              label="Active employees"
               value={report.metrics.totalEmployees}
-              icon={<Users size={24} />}
-              badge={report.metrics.newHires > 0 && `+${report.metrics.newHires}`}
               hint={`${report.metrics.newHires} hired in the ${periodLabel}`}
             />
             <StatCard
-              label="Avg Attendance"
+              label="Average attendance"
               value={`${report.metrics.avgAttendance}%`}
-              icon={<TrendingUp size={24} />}
-              tone="mint"
               hint="Check-ins out of all working days"
             />
             <StatCard
-              label="Pending Leaves"
+              label="Pending leave"
               value={report.metrics.pendingLeaves}
-              icon={<Calendar size={24} />}
-              tone="amber"
-              hint={report.metrics.pendingLeaves > 0 ? 'Awaiting approval' : 'All caught up!'}
+              hint={report.metrics.pendingLeaves > 0 ? 'Waiting for a decision' : 'None waiting'}
+              href="/leave"
             />
-            <StatCard
-              label="Departments"
-              value={report.metrics.departmentCount}
-              icon={<BarChart3 size={24} />}
-              tone="sky"
-              hint="With at least one active employee"
-            />
-          </div>
+            <StatCard label="Departments" value={report.metrics.departmentCount} hint="With at least one active employee" />
+          </Stats>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card title="Employees by Department">
-              {report.departmentStats.length === 0 ? (
-                <p className="text-center py-8 text-mint-700">No department data available</p>
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+            <Card title="Attendance" description="Last five working days" className="lg:col-span-2">
+              <AttendanceChart days={report.weeklyTrend} />
+            </Card>
+
+            <Card title="People by department">
+              {departments.length === 0 ? (
+                <p className="py-8 text-center text-sm text-ink-500">No departments yet</p>
               ) : (
-                <div className="space-y-4">
-                  {report.departmentStats.map((dept, i) => (
-                    <Bar key={dept.name} label={dept.name} value={dept.count} width={dept.percentage} color={BAR_COLORS[i % BAR_COLORS.length]} />
+                <ol className="space-y-4">
+                  {departments.map((dept, i) => (
+                    <li key={dept.name}>
+                      <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm">
+                        <span className="truncate text-ink-700">{dept.name}</span>
+                        <span className="font-medium tabular-nums text-ink-900">{dept.count}</span>
+                      </div>
+                      <div className="h-1 w-full overflow-hidden rounded-full bg-ink-100">
+                        <div
+                          className={`h-full w-full origin-left rounded-full transition-transform duration-600 ease-out-soft ${
+                            i === 0 ? 'bg-mint-500' : 'bg-ink-300'
+                          }`}
+                          style={{ transform: `scaleX(${clamp(dept.percentage) / 100})` }}
+                        />
+                      </div>
+                    </li>
                   ))}
-                </div>
+                </ol>
               )}
             </Card>
-
-            <Card title="Attendance, Last 5 Working Days">
-              <div className="space-y-4">
-                {report.weeklyTrend.map((day) => (
-                  <Bar
-                    key={day.date}
-                    label={day.day}
-                    value={`${day.rate}%`}
-                    width={day.rate}
-                    color={day.rate >= 96 ? 'bg-mint-500' : 'bg-amber-500'}
-                  />
-                ))}
-              </div>
-            </Card>
           </div>
 
-          <Card title="Leave Requests" description={`Submitted in the ${periodLabel}; pending is everything still waiting`}>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger">
-              {[
-                { label: 'Approved', value: report.leaveStats.approved, color: 'bg-mint-100 text-mint-900' },
-                { label: 'Pending', value: report.leaveStats.pending, color: 'bg-amber-100 text-amber-900' },
-                { label: 'Rejected', value: report.leaveStats.rejected, color: 'bg-rose-100 text-rose-900' },
-                { label: 'Cancelled', value: report.leaveStats.cancelled, color: 'bg-stone-100 text-stone-800' },
-              ].map((stat) => (
-                <div key={stat.label} className={`rounded-2xl p-5 ${stat.color}`}>
-                  <p className="text-xs font-semibold uppercase tracking-wider">{stat.label}</p>
-                  <p className="font-display text-4xl font-bold mt-2 tabular-nums">{stat.value}</p>
+          <Card title="Leave requests" description={`${leaveTotal} submitted in the ${periodLabel}. Pending counts everything still waiting.`}>
+            {leave && (
+              <>
+                <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-ink-100">
+                  {leaveTotal > 0 &&
+                    LEAVE_PARTS.map((part) =>
+                      leave[part.key] > 0 ? (
+                        <span key={part.key} className={part.color} style={{ flexGrow: leave[part.key] }} />
+                      ) : null
+                    )}
                 </div>
-              ))}
-            </div>
+                <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-4">
+                  {LEAVE_PARTS.map((part) => (
+                    <div key={part.key}>
+                      <dt className="flex items-center gap-1.5 text-sm text-ink-600">
+                        <span aria-hidden className={`size-2 rounded-sm ${part.color}`} />
+                        {part.label}
+                      </dt>
+                      <dd className="mt-1 font-display text-2xl font-medium tabular-nums text-ink-900">{leave[part.key]}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </>
+            )}
           </Card>
         </>
       )}

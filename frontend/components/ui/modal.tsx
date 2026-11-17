@@ -52,25 +52,25 @@ export function Modal({
       <div
         aria-hidden="true"
         onClick={onClose}
-        className={`absolute inset-0 bg-mint-950/40 backdrop-blur-[2px] transition-opacity duration-150 ${leaving ? 'opacity-0' : 'animate-fade'}`}
+        className={`absolute inset-0 bg-ink-950/40 transition-opacity duration-150 ${leaving ? 'opacity-0' : 'animate-fade'}`}
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-card bg-white shadow-lift transition-[opacity,transform] duration-150 ${
+        className={`relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-panel bg-white shadow-lift transition-[opacity,transform] duration-150 ${
           leaving ? 'opacity-0 translate-y-2 scale-[0.98]' : 'animate-pop'
         }`}
       >
-        <div className="flex items-start justify-between px-6 pt-6 pb-4">
-          <h2 className="text-xl font-bold text-mint-950">{title}</h2>
+        <div className="flex items-center justify-between px-6 pt-5 pb-4">
+          <h2 className="text-lg font-semibold text-ink-900">{title}</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="-mr-2 -mt-1 grid size-9 place-items-center rounded-full text-mint-800 transition-[background-color,transform] duration-200 ease-out-soft hover:bg-mint-100 hover:rotate-90"
+            className="-mr-2 grid size-8 place-items-center rounded-full text-ink-500 transition-colors duration-150 hover:bg-ink-100 hover:text-ink-900"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
         <div className="px-6 pb-6">{isOpen ? children : lastChildren}</div>
@@ -81,5 +81,5 @@ export function Modal({
 
 /** Right-aligned row of buttons at the bottom of a modal. */
 export function ModalActions({ children }: { children: React.ReactNode }) {
-  return <div className="flex justify-end gap-3 mt-6">{children}</div>;
+  return <div className="mt-6 flex justify-end gap-2">{children}</div>;
 }

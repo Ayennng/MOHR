@@ -12,6 +12,9 @@ export interface Column<T> {
   sortable?: boolean;
 }
 
+// Tables sit in a Card (p-6) and run to its edges; the outer cells keep the 24px inset
+const cell = 'px-3 first:pl-6 last:pr-6';
+
 export function Table<T extends { id: string }>({
   columns,
   data,
@@ -19,7 +22,7 @@ export function Table<T extends { id: string }>({
   sortColumn,
   sortDirection,
   onSort,
-  emptyText = 'No data available',
+  emptyText = 'Nothing here yet',
 }: {
   columns: Column<T>[];
   data: T[];
@@ -30,25 +33,29 @@ export function Table<T extends { id: string }>({
   emptyText?: string;
 }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-mint-900/8">
-      <table className="w-full">
+    <div className="-mx-6 overflow-x-auto">
+      <table className="w-full text-sm">
         <thead>
-          <tr className="bg-mint-50">
+          <tr className="border-y border-ink-900/8 bg-ink-50">
             {columns.map((column) => {
               const active = sortColumn === column.key;
               return (
-                <th key={column.label} scope="col" className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-mint-800">
+                <th
+                  key={column.label}
+                  scope="col"
+                  className={`h-10 whitespace-nowrap text-left text-xs font-medium text-ink-500 ${cell}`}
+                >
                   {column.sortable && onSort ? (
                     <button
                       type="button"
                       onClick={() => onSort(column.key)}
-                      className={`inline-flex items-center gap-1 rounded-md uppercase tracking-wider hover:text-mint-950 ${active ? 'text-mint-950' : ''}`}
+                      className={`inline-flex items-center gap-1 rounded transition-colors duration-150 hover:text-ink-900 ${active ? 'text-ink-900' : ''}`}
                     >
                       {column.label}
                       {active ? (
                         sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
                       ) : (
-                        <ChevronsUpDown size={14} className="opacity-40" />
+                        <ChevronsUpDown size={14} className="opacity-50" />
                       )}
                     </button>
                   ) : (
@@ -59,24 +66,27 @@ export function Table<T extends { id: string }>({
             })}
           </tr>
         </thead>
-        <tbody className={loading ? '' : 'stagger'}>
+        <tbody>
           {loading ? (
             <tr>
-              <td colSpan={columns.length} className="px-5 py-10 text-center text-mint-600">
+              <td colSpan={columns.length} className="py-12 text-center text-ink-400">
                 <Spinner />
               </td>
             </tr>
           ) : data.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="px-5 py-10 text-center text-mint-700">
+              <td colSpan={columns.length} className="py-12 text-center text-ink-500">
                 {emptyText}
               </td>
             </tr>
           ) : (
             data.map((row) => (
-              <tr key={row.id} className="border-t border-mint-900/6 transition-colors duration-200 hover:bg-mint-50/70">
+              <tr
+                key={row.id}
+                className="border-b border-ink-900/6 transition-colors duration-150 last:border-0 hover:bg-ink-50 animate-fade"
+              >
                 {columns.map((column) => (
-                  <td key={column.label} className="whitespace-nowrap px-5 py-3.5 text-sm text-mint-900">
+                  <td key={column.label} className={`h-12 whitespace-nowrap text-ink-800 ${cell}`}>
                     {column.render ? column.render(row) : String(getPath(row, column.key) ?? '-')}
                   </td>
                 ))}

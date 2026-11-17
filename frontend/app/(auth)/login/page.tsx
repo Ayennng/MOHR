@@ -10,7 +10,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const { registered } = await searchParams;
 
   return (
-    <AuthHero title="Welcome Back" subtitle="Manage your HR efficiently with our modern system designed for growth.">
+    <AuthHero
+      title="Leave, attendance and rooms for your whole team"
+      subtitle="Staff check in, request leave and book rooms. Managers approve it all from one list."
+    >
       <LoginForm showDemo={process.env.DEMO_MODE === 'true'} registered={registered === 'true'} />
     </AuthHero>
   );

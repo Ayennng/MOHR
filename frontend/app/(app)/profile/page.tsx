@@ -30,11 +30,11 @@ const toForm = (p: UserProfile): ProfileForm => ({
 
 function SummaryRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-mint-100 text-mint-800">{icon}</div>
+    <div className="flex items-start gap-3">
+      <div className="mt-0.5 shrink-0 text-ink-400">{icon}</div>
       <div className="min-w-0">
-        <p className="text-xs text-mint-700 font-medium">{label}</p>
-        <p className="text-sm text-mint-900 truncate">{value}</p>
+        <p className="text-xs text-ink-500">{label}</p>
+        <p className="truncate text-sm text-ink-900">{value}</p>
       </div>
     </div>
   );
@@ -75,10 +75,10 @@ function ProfileEditor({ profile }: { profile: UserProfile }) {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <Card title="Profile Picture">
+    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+      <Card title="Photo">
         <AvatarUpload currentAvatar={avatar} onChange={handleAvatarChange} />
-        <div className="mt-6 pt-6 border-t border-mint-100 space-y-3">
+        <div className="mt-6 space-y-4 border-t border-ink-900/8 pt-5">
           <SummaryRow icon={<Mail size={16} />} label="Email" value={profile.email} />
           <SummaryRow icon={<Shield size={16} />} label="Role" value={humanize(profile.role)} />
           {profile.department && <SummaryRow icon={<Building size={16} />} label="Department" value={profile.department} />}
@@ -86,36 +86,36 @@ function ProfileEditor({ profile }: { profile: UserProfile }) {
       </Card>
 
       <div className="lg:col-span-2 space-y-6">
-        <Card title="Personal Information">
+        <Card title="Personal details">
           <form onSubmit={handleSubmit} className="space-y-5">
             <Alert>{error}</Alert>
-            {saved && <Alert tone="success">Profile updated.</Alert>}
+            {saved && <Alert tone="success">Profile updated</Alert>}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="First Name">
+              <Field label="First name">
                 <input value={form.firstName} onChange={set('firstName')} className={inputClass} required />
               </Field>
-              <Field label="Last Name">
+              <Field label="Last name">
                 <input value={form.lastName} onChange={set('lastName')} className={inputClass} required />
               </Field>
             </div>
-            <Field label="Email Address" hint="Only an admin can change your email.">
+            <Field label="Email" hint="Only an admin can change your email">
               <input type="email" value={profile.email} disabled className={inputClass} />
             </Field>
-            <Field label="Phone Number">
+            <Field label="Phone">
               <input type="tel" value={form.phone} onChange={set('phone')} className={inputClass} placeholder="+60 12-345 6789" />
             </Field>
             <Field label="Department">
-              <input value={form.department} onChange={set('department')} className={inputClass} placeholder="e.g., Engineering, HR, Sales" />
+              <input value={form.department} onChange={set('department')} className={inputClass} placeholder="Engineering" />
             </Field>
 
-            <div className="flex justify-end gap-3 pt-6 border-t border-mint-100">
+            <div className="flex justify-end gap-2 border-t border-ink-900/8 pt-5">
               <Button variant="ghost" onClick={() => setForm(toForm(profile))}>
                 Reset
               </Button>
               <Button type="submit" isLoading={saving}>
-                <Save size={18} />
-                Save Changes
+                <Save size={16} />
+                Save changes
               </Button>
             </div>
           </form>
@@ -132,7 +132,7 @@ export default function ProfilePage() {
 
   return (
     <>
-      <PageHeader eyebrow="My Profile" title="Profile Settings" description="Manage your personal information and password" />
+      <PageHeader title="Profile" description="Your details, photo and password" />
       {loading ? <PageSpinner /> : profile ? <ProfileEditor profile={profile} /> : <Alert>{error ?? 'Failed to load profile'}</Alert>}
     </>
   );

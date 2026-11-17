@@ -35,12 +35,12 @@ export default function EditEmployeePage() {
   return (
     <>
       <PageHeader
-        back={{ href: '/employees', label: 'Back to employees' }}
+        back={{ href: '/employees', label: 'Employees' }}
         title={`Edit ${employee.user.firstName} ${employee.user.lastName}`}
-        description="Update employee information"
+        description="Their details, position and status"
       />
 
-      <Card>
+      <Card className="max-w-3xl">
         <EmployeeForm
           onSubmit={handleSubmit}
           initialData={{
@@ -53,7 +53,7 @@ export default function EditEmployeePage() {
             hireDate: employee.hireDate,
             status: employee.status,
           }}
-          submitText="Update Employee"
+          submitText="Save changes"
           showStatus
         />
       </Card>

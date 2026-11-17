@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { Plus, Edit2, Trash2, Users, Building } from 'lucide-react';
+import { Plus, Pencil, UserX } from 'lucide-react';
 import { api, useApi } from '@/lib/api';
 import { sortRows, useSort } from '@/lib/sort';
 import {
-  Alert, Button, Card, Column, Modal, ModalActions, PageHeader, StatCard, StatusBadge, Table, buttonClass,
+  Alert, Button, Card, Column, Modal, ModalActions, PageHeader, StatCard, Stats, StatusBadge, Table, buttonClass,
 } from '@/components/ui';
 
 interface Employee {
@@ -53,21 +53,31 @@ export default function EmployeesPage() {
   const departments = new Set(employees.map((e) => e.user.department).filter(Boolean)).size;
 
   const columns: Column<Employee>[] = [
-    { key: 'employeeId', label: 'ID', sortable: true },
-    { key: 'user.firstName', label: 'Name', sortable: true, render: (e) => `${e.user.firstName} ${e.user.lastName}` },
-    { key: 'user.email', label: 'Email', sortable: true },
+    { key: 'employeeId', label: 'ID', sortable: true, render: (e) => <span className="tabular-nums text-ink-500">{e.employeeId}</span> },
+    {
+      key: 'user.firstName',
+      label: 'Name',
+      sortable: true,
+      render: (e) => <span className="font-medium text-ink-900">{`${e.user.firstName} ${e.user.lastName}`}</span>,
+    },
+    { key: 'user.email', label: 'Email', sortable: true, render: (e) => <span className="text-ink-600">{e.user.email}</span> },
     { key: 'position', label: 'Position', sortable: true },
-    { key: 'user.department', label: 'Department', sortable: true },
+    { key: 'user.department', label: 'Department', sortable: true, render: (e) => e.user.department ?? <span className="text-ink-400">-</span> },
     { key: 'status', label: 'Status', sortable: true, render: (e) => <StatusBadge status={e.status} /> },
   ];
   if (isAdmin) {
     columns.push({
       key: 'id',
-      label: 'Actions',
+      label: '',
       render: (e) => (
-        <div className="flex items-center gap-2">
-          <Link href={`/employees/${e.id}/edit`} className="grid size-8 place-items-center rounded-full text-mint-800 transition-colors hover:bg-mint-100" title="Edit">
-            <Edit2 size={18} />
+        <div className="flex items-center justify-end gap-1">
+          <Link
+            href={`/employees/${e.id}/edit`}
+            className="grid size-8 place-items-center rounded-full text-ink-500 transition-colors duration-150 hover:bg-ink-100 hover:text-ink-900"
+            title="Edit"
+            aria-label={`Edit ${e.user.firstName} ${e.user.lastName}`}
+          >
+            <Pencil size={16} />
           </Link>
           {e.status !== 'INACTIVE' && (
             <button
@@ -76,10 +86,11 @@ export default function EmployeesPage() {
                 setDeactivateError(null);
                 setDeactivating(e);
               }}
-              className="grid size-8 place-items-center rounded-full text-rose-700 transition-colors hover:bg-rose-50"
+              className="grid size-8 place-items-center rounded-full text-ink-500 transition-colors duration-150 hover:bg-rose-50 hover:text-rose-700"
               title="Deactivate"
+              aria-label={`Deactivate ${e.user.firstName} ${e.user.lastName}`}
             >
-              <Trash2 size={18} />
+              <UserX size={16} />
             </button>
           )}
         </div>
@@ -90,31 +101,25 @@ export default function EmployeesPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Team Management"
-        title="Team Members"
-        description={`${employees.length} employees across ${departments} departments`}
+        title="Employees"
+        description={loading ? ' ' : `${employees.length} people across ${departments} departments`}
         action={
           isAdmin && (
-            <Link href="/employees/add" className={buttonClass('primary', 'lg')}>
-              <Plus size={24} />
-              Add Employee
+            <Link href="/employees/add" className={buttonClass()}>
+              <Plus size={16} />
+              Add employee
             </Link>
           )
         }
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard label="Total Employees" value={employees.length} icon={<Users size={24} />} />
-        <StatCard
-          label="Active"
-          value={employees.filter((e) => e.status === 'ACTIVE').length}
-          icon={<Users size={24} />}
-          tone="mint"
-        />
-        <StatCard label="Departments" value={departments} icon={<Building size={24} />} tone="sky" />
-      </div>
+      <Stats cols={3}>
+        <StatCard label="Employees" value={employees.length} hint="Everyone with a record, active or not" />
+        <StatCard label="Active" value={employees.filter((e) => e.status === 'ACTIVE').length} hint="Can sign in and record attendance" />
+        <StatCard label="Departments" value={departments} />
+      </Stats>
 
-      <Card title="Employee Directory">
+      <Card title="Directory">
         {error && <Alert>Failed to load employees: {error}</Alert>}
         <Table
           columns={columns}
@@ -126,10 +131,10 @@ export default function EmployeesPage() {
         />
       </Card>
 
-      <Modal isOpen={!!deactivating} onClose={() => setDeactivating(null)} title="Deactivate Employee">
+      <Modal isOpen={!!deactivating} onClose={() => setDeactivating(null)} title="Deactivate employee">
         <div className="space-y-4">
           <Alert>{deactivateError}</Alert>
-          <p className="text-mint-700">
+          <p className="text-[15px] text-ink-600">
             Deactivate {deactivating?.user.firstName} {deactivating?.user.lastName}? They will no longer be able to
             sign in. Their leave and attendance history is kept, and you can reactivate them from Edit.
           </p>

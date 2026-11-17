@@ -70,31 +70,31 @@ export function LoginForm({ showDemo = false, registered = false }: { showDemo?:
 
   return (
     <div>
-      <h1 className="text-4xl font-bold text-mint-950">Sign in</h1>
-      <p className="mt-2 mb-8 text-mint-700">Sign in to your account to continue</p>
+      <h1 className="text-3xl font-medium text-ink-900">Sign in</h1>
+      <p className="mt-1.5 mb-8 text-[15px] text-ink-600">Use the email your company registered you with</p>
 
       <div className="mb-5 space-y-3 empty:hidden">
-        {registered && !error && <Alert tone="success">Account created. Sign in to continue.</Alert>}
+        {registered && !error && <Alert tone="success">Account created, you can sign in now</Alert>}
         <Alert>{error}</Alert>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <FormField label="Email" error={errors.email?.message} required>
-          <input type="email" placeholder="your@email.com" className={inputClass} autoComplete="email" {...register('email')} />
+          <input type="email" placeholder="you@company.com" className={inputClass} autoComplete="email" {...register('email')} />
         </FormField>
 
         <FormField label="Password" error={errors.password?.message} required>
-          <PasswordInput placeholder="Enter your password" autoComplete="current-password" {...register('password')} />
+          <PasswordInput placeholder="Your password" autoComplete="current-password" {...register('password')} />
         </FormField>
 
         <Button type="submit" size="lg" isLoading={isLoading} className="w-full">
-          {isLoading ? 'Signing in...' : 'Sign In'}
+          {isLoading ? 'Signing in' : 'Sign in'}
         </Button>
       </form>
 
       {showDemo && (
-        <div className="mt-8 rounded-card border border-dashed border-mint-900/20 bg-mint-50 p-5">
-          <p className="mb-3 text-sm font-semibold text-mint-900">Just looking? Try the demo</p>
+        <div className="mt-8 rounded-card border border-ink-900/8 bg-ink-50 p-4">
+          <p className="mb-3 text-sm font-medium text-ink-900">Try the demo as</p>
           <div className="grid grid-cols-3 gap-2">
             {DEMO_ACCOUNTS.map((account) => (
               <Button
@@ -108,15 +108,15 @@ export function LoginForm({ showDemo = false, registered = false }: { showDemo?:
               </Button>
             ))}
           </div>
-          <p className="mt-3 text-xs text-mint-700">
-            Sample company data, reset every night. Password for all three: {DEMO_PASSWORD}
+          <p className="mt-3 text-xs text-ink-500">
+            Sample company data, reset every night. Password for all three: <span className="font-mono">{DEMO_PASSWORD}</span>
           </p>
         </div>
       )}
 
-      <div className="mt-8 text-center text-sm text-mint-700">
+      <div className="mt-8 text-center text-sm text-ink-600">
         Don&apos;t have an account?{' '}
-        <Link href="/register" className="font-semibold text-mint-900 underline decoration-mint-300 decoration-2 underline-offset-4 transition-colors hover:decoration-mint-600">
+        <Link href="/register" className="font-medium text-ink-900 underline decoration-mint-400 decoration-2 underline-offset-4 transition-colors duration-150 hover:decoration-mint-700">
           Create one
         </Link>
       </div>

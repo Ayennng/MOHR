@@ -1,25 +1,19 @@
 'use client';
 
-import Header from '@/components/dashboard/header';
 import Sidebar from '@/components/dashboard/sidebar';
 import { SidebarProvider, useSidebar } from '@/components/dashboard/sidebar-context';
 
-// Shared shell (header + sidebar) for every signed-in page in the (app) route group.
-// Route groups don't change URLs: app/(app)/leave/page.tsx is still /leave.
+// Shared shell (full-height sidebar + content) for every signed-in page in the (app)
+// route group. Route groups don't change URLs: app/(app)/leave/page.tsx is still /leave.
 function AppShell({ children }: { children: React.ReactNode }) {
   const { sidebarOpen } = useSidebar();
 
   return (
     <div className="min-h-screen bg-ground">
-      <Header />
-      <div className="flex h-screen pt-16">
-        <Sidebar />
-        <main className={`flex-1 overflow-y-auto transition-[margin] duration-300 ease-out-soft ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
-          <div className="p-4 sm:p-6 lg:p-8">
-            <div className="max-w-7xl mx-auto">{children}</div>
-          </div>
-        </main>
-      </div>
+      <Sidebar />
+      <main className={`min-h-screen transition-[margin] duration-300 ease-out-soft ${sidebarOpen ? 'ml-62' : 'ml-18'}`}>
+        <div className="mx-auto max-w-[1440px] px-5 py-8 sm:px-8 lg:px-10 lg:py-10">{children}</div>
+      </main>
     </div>
   );
 }

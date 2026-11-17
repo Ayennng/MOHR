@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { Users, Calendar, Clock, DoorOpen, ArrowRight, LogIn, CheckCircle2 } from 'lucide-react';
+import { Calendar, Clock, DoorOpen, ArrowRight } from 'lucide-react';
 import { useApi } from '@/lib/api';
 import { formatTime } from '@/lib/format';
-import { Alert, StatCard } from '@/components/ui';
+import { Alert, SectionTitle, StatCard, Stats, buttonClass } from '@/components/ui';
 import { LiveClock } from '@/components/attendance/live-clock';
 
 interface DashboardStats {
@@ -15,41 +15,103 @@ interface DashboardStats {
   myBookingsToday: number;
 }
 
-interface TodayAttendance {
+type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'HALF_DAY';
+
+interface AttendanceMonth {
+  today: string; // company-timezone date, YYYY-MM-DD
   todayRecord: { checkInTime: string | null; checkOutTime: string | null } | null;
+  records: { date: string; status: AttendanceStatus }[];
 }
 
-const quickActions = [
-  { href: '/leave/request', title: 'Request Leave', text: 'Submit a new leave request for approval', icon: <Calendar size={26} /> },
-  { href: '/attendance', title: 'Attendance', text: 'View your records and check in or out', icon: <Clock size={26} /> },
-  { href: '/rooms', title: 'Book a Room', text: 'Find a free meeting room and reserve it', icon: <DoorOpen size={26} /> },
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+/** Monday-to-Friday dates (YYYY-MM-DD) of the week that contains `day`. */
+function workWeek(day: string) {
+  const [y, m, d] = day.split('-').map(Number);
+  const offset = (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7; // 0 = Monday
+  return WEEKDAYS.map((_, i) => new Date(Date.UTC(y, m - 1, d - offset + i)).toISOString().slice(0, 10));
+}
+
+const DAY_STYLE: Record<AttendanceStatus, { cell: string; label: string }> = {
+  PRESENT: { cell: 'bg-mint-400', label: 'In' },
+  HALF_DAY: { cell: 'bg-mint-400/50', label: 'Half day' },
+  LATE: { cell: 'bg-amber-300', label: 'Late' },
+  ABSENT: { cell: 'bg-mint-100/10', label: 'Absent' },
+};
+
+const shortcuts = [
+  { href: '/leave/request', title: 'Request leave', text: 'Send a request for approval', icon: <Calendar size={18} /> },
+  { href: '/attendance', title: 'Attendance', text: 'Your records, check in and out', icon: <Clock size={18} /> },
+  { href: '/rooms', title: 'Book a room', text: 'Find a free room and reserve it', icon: <DoorOpen size={18} /> },
 ];
 
-/** Where the signed-in user stands today: checked in, done, or not in yet. */
-function TodayStatus() {
-  const { data } = useApi<TodayAttendance>('/api/attendance');
-  const today = data?.todayRecord;
+/** The forest panel: the time, where the user stands today and their week so far. */
+function TodayPanel() {
+  const { data } = useApi<AttendanceMonth>('/api/attendance');
+  const record = data?.todayRecord;
+  const state = !data ? 'loading' : record?.checkOutTime ? 'done' : record?.checkInTime ? 'in' : 'out';
 
-  const [icon, title, detail] = !data
-    ? [<Clock key="i" size={22} />, 'Checking today...', ' ']
-    : today?.checkOutTime
-      ? [<CheckCircle2 key="i" size={22} />, 'Done for today', `Out at ${formatTime(today.checkOutTime)}`]
-      : today?.checkInTime
-        ? [<CheckCircle2 key="i" size={22} />, 'You are checked in', `Since ${formatTime(today.checkInTime)}`]
-        : [<LogIn key="i" size={22} />, 'Not checked in yet', 'Tap to check in'];
+  const status = { loading: 'Checking', done: 'Done for today', in: 'Checked in', out: 'Not checked in' }[state];
+  const detail =
+    state === 'done' && record?.checkInTime && record.checkOutTime
+      ? `In at ${formatTime(record.checkInTime)}, out at ${formatTime(record.checkOutTime)}`
+      : state === 'in' && record?.checkInTime
+        ? `Checked in at ${formatTime(record.checkInTime)}`
+        : state === 'out'
+          ? 'Check in when you start work'
+          : ' ';
+
+  const byDate = new Map(data?.records.map((r) => [r.date, r.status]));
+  const week = data ? workWeek(data.today) : WEEKDAYS.map((d) => d);
 
   return (
-    <Link
-      href="/attendance"
-      className="group flex items-center gap-4 rounded-2xl bg-white/70 p-4 pr-5 shadow-soft transition-[transform,box-shadow,background-color] duration-200 ease-out-soft hover:-translate-y-0.5 hover:bg-white hover:shadow-lift"
-    >
-      <span className="grid size-11 place-items-center rounded-xl bg-mint-900 text-mint-200">{icon}</span>
-      <span>
-        <span className="block font-semibold text-mint-950">{title}</span>
-        <span className="block text-sm text-mint-800">{detail}</span>
-      </span>
-      <ArrowRight size={18} className="ml-auto text-mint-800 transition-transform duration-200 ease-out-soft group-hover:translate-x-1" />
-    </Link>
+    <section className="flex flex-col justify-between gap-10 rounded-panel bg-mint-950 p-6 text-mint-100 md:p-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-sm text-mint-300">Your day</p>
+          <LiveClock className="mt-2 font-display text-5xl font-medium tracking-[-0.02em] tabular-nums text-mint-200 md:text-6xl" />
+        </div>
+        <span className="inline-flex items-center gap-2 rounded-full bg-mint-100/10 px-3 py-1 text-[13px] text-mint-100">
+          <span aria-hidden className={`size-1.5 rounded-full ${state === 'in' ? 'bg-mint-400' : 'bg-mint-100/40'}`} />
+          {status}
+        </span>
+      </div>
+
+      <ol className="grid grid-cols-5 gap-2" aria-label="This week">
+        {week.map((date, i) => {
+          const isToday = data?.today === date;
+          const future = !!data && date > data.today;
+          const day = byDate.get(date);
+          const cell = !data
+            ? 'bg-mint-100/10'
+            : day
+              ? DAY_STYLE[day].cell
+              : future
+                ? 'border border-dashed border-mint-100/20'
+                : isToday
+                  ? 'border border-mint-200/50'
+                  : 'bg-mint-100/10';
+          const label = day ? DAY_STYLE[day].label : future ? 'Coming up' : isToday ? 'Today' : 'No record';
+          return (
+            <li key={date}>
+              <span aria-hidden className={`block h-10 rounded-lg ${cell}`} title={label} />
+              <span className={`mt-2 block text-xs ${isToday ? 'font-medium text-mint-200' : 'text-mint-100/60'}`}>
+                {WEEKDAYS[i]}
+                <span className="sr-only">: {label}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <p className="text-sm text-mint-100/75">{detail}</p>
+        <Link href="/attendance" className={buttonClass('secondary')}>
+          {state === 'out' ? 'Check in' : 'Open attendance'}
+          <ArrowRight size={16} />
+        </Link>
+      </div>
+    </section>
   );
 }
 
@@ -59,78 +121,53 @@ export default function DashboardPage() {
   // The employee directory is only open to admins and managers
   const canViewEmployees = session?.user?.role === 'ADMIN' || session?.user?.role === 'MANAGER';
   const value = (n?: number) => (loading ? '…' : (n ?? 0));
-  const firstName = session?.user?.name?.split(' ')[0] || 'there';
 
   return (
     <>
-      <section className="relative overflow-hidden rounded-card bg-mint-200 p-8 md:p-10">
-        <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
-          <div>
-            <LiveClock
-              format="date"
-              className="mb-5 inline-block rounded-full bg-mint-900 px-3.5 py-1.5 text-xs font-semibold text-mint-200"
-            />
-            <h1 className="text-4xl md:text-6xl font-bold text-mint-950">Welcome back, {firstName}</h1>
-            <p className="mt-3 text-lg text-mint-800">Here&apos;s how today looks across MoHR.</p>
-          </div>
-          <div className="lg:w-80">
-            <TodayStatus />
-          </div>
-        </div>
-      </section>
+      <header>
+        <LiveClock format="date" className="text-sm text-ink-500" />
+        <h1 className="mt-1 text-3xl font-medium text-ink-900">Today</h1>
+      </header>
 
       {error && <Alert>Failed to load dashboard data</Alert>}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 stagger">
-        <StatCard
-          label="Active Employees"
-          value={value(stats?.totalEmployees)}
-          icon={<Users size={22} />}
-          tone="ink"
-          href={canViewEmployees ? '/employees' : undefined}
-        />
-        <StatCard
-          label={canViewEmployees ? 'Pending Leave Requests' : 'My Pending Requests'}
-          value={value(stats?.pendingLeaves)}
-          icon={<Calendar size={22} />}
-          tone="sky"
-          href="/leave"
-        />
-        <StatCard
-          label="Absent Today"
-          value={value(stats?.absentToday)}
-          icon={<Clock size={22} />}
-          tone="amber"
-          hint="Not checked in and not on leave"
-        />
-        <StatCard
-          label="My Bookings Today"
-          value={value(stats?.myBookingsToday)}
-          icon={<DoorOpen size={22} />}
-          tone="mint"
-          href="/rooms"
-        />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+        <TodayPanel />
+        <Stats cols={2} className="auto-rows-fr">
+          <StatCard
+            label="Active employees"
+            value={value(stats?.totalEmployees)}
+            href={canViewEmployees ? '/employees' : undefined}
+          />
+          <StatCard
+            label={canViewEmployees ? 'Leave to approve' : 'My pending requests'}
+            value={value(stats?.pendingLeaves)}
+            hint="Waiting for a decision"
+            href="/leave"
+          />
+          <StatCard label="Absent today" value={value(stats?.absentToday)} hint="Not checked in, not on leave" />
+          <StatCard label="My bookings today" value={value(stats?.myBookingsToday)} href="/rooms" />
+        </Stats>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 stagger">
-        {quickActions.map((action) => (
-          <Link
-            key={action.href}
-            href={action.href}
-            className="group rounded-card border border-mint-900/8 bg-white p-6 shadow-soft transition-[transform,box-shadow] duration-200 ease-out-soft hover:-translate-y-1 hover:shadow-lift"
-          >
-            <div className="mb-8 grid size-12 place-items-center rounded-2xl bg-mint-100 text-mint-800 transition-[transform,background-color] duration-300 ease-pop group-hover:-rotate-6 group-hover:scale-110 group-hover:bg-mint-200">
-              {action.icon}
-            </div>
-            <h3 className="text-xl font-bold text-mint-950">{action.title}</h3>
-            <p className="mt-1 text-sm text-mint-700">{action.text}</p>
-            <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-mint-900">
-              Open
-              <ArrowRight size={16} className="transition-transform duration-200 ease-out-soft group-hover:translate-x-1" />
-            </span>
-          </Link>
-        ))}
-      </div>
+      <section className="space-y-3">
+        <SectionTitle>Shortcuts</SectionTitle>
+        <div className="grid gap-px overflow-hidden rounded-card border border-ink-900/8 bg-ink-900/8 shadow-soft sm:grid-cols-3">
+          {shortcuts.map((s) => (
+            <Link key={s.href} href={s.href} className="group flex items-start gap-4 bg-white p-5 transition-colors duration-150 hover:bg-ink-50">
+              <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-ink-100 text-ink-600">{s.icon}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-ink-900">{s.title}</span>
+                <span className="mt-0.5 block text-[13px] text-ink-500">{s.text}</span>
+              </span>
+              <ArrowRight
+                size={16}
+                className="mt-0.5 shrink-0 text-ink-300 transition-[transform,color] duration-150 ease-out-soft group-hover:translate-x-0.5 group-hover:text-ink-900"
+              />
+            </Link>
+          ))}
+        </div>
+      </section>
     </>
   );
 }

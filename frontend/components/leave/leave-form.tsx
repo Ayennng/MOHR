@@ -59,26 +59,26 @@ export function LeaveForm({ onSubmit }: { onSubmit: (data: FormData) => Promise<
   };
 
   return (
-    <form onSubmit={handleSubmit(submit)} className="space-y-6">
+    <form onSubmit={handleSubmit(submit)} className="space-y-5">
       <Alert>{error}</Alert>
 
-      <Field label="Leave Type" error={errors.leaveType?.message}>
+      <Field label="Leave type" error={errors.leaveType?.message}>
         <select {...register('leaveType')} className={inputClass} defaultValue="">
           <option value="" disabled>
-            Select Leave Type
+            Select a type
           </option>
           <option value="VACATION">Vacation</option>
-          <option value="SICK">Sick Leave</option>
-          <option value="PERSONAL">Personal Leave</option>
-          <option value="UNPAID">Unpaid Leave</option>
+          <option value="SICK">Sick</option>
+          <option value="PERSONAL">Personal</option>
+          <option value="UNPAID">Unpaid</option>
         </select>
       </Field>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Field label="Start Date" error={errors.startDate?.message}>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <Field label="Start date" error={errors.startDate?.message}>
           <input {...register('startDate')} type="date" className={inputClass} />
         </Field>
-        <Field label="End Date" error={errors.endDate?.message}>
+        <Field label="End date" error={errors.endDate?.message}>
           <input {...register('endDate')} type="date" className={inputClass} />
         </Field>
       </div>
@@ -88,7 +88,7 @@ export function LeaveForm({ onSubmit }: { onSubmit: (data: FormData) => Promise<
           {...register('reason')}
           className={inputClass}
           rows={4}
-          placeholder="Please provide a reason for your leave request"
+          placeholder="A short note for whoever approves it"
         />
       </Field>
 
@@ -97,22 +97,22 @@ export function LeaveForm({ onSubmit }: { onSubmit: (data: FormData) => Promise<
           type="file"
           onChange={handleFileChange}
           accept=".pdf,.jpg,.jpeg,.png,.webp"
-          className={`${inputClass} file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-mint-200 file:text-mint-900 file:font-semibold hover:file:bg-mint-300`}
+          className={`${inputClass} file:mr-3 file:rounded-full file:border-0 file:bg-ink-100 file:px-3 file:py-1 file:text-[13px] file:font-medium file:text-ink-900 hover:file:bg-ink-200`}
         />
       </Field>
       {file && (
-        <p className="-mt-4 flex items-center gap-2 text-sm text-mint-800 animate-fade">
-          <Check size={16} />
+        <p className="-mt-3 flex items-center gap-2 text-sm text-ink-600 animate-fade">
+          <Check size={16} className="text-mint-700" />
           {file.name} ({(file.size / 1024).toFixed(1)} KB)
         </p>
       )}
 
-      <div className="flex justify-end gap-3">
+      <div className="flex justify-end gap-2 border-t border-ink-900/8 pt-5">
         <Link href="/leave" className={buttonClass('ghost')}>
           Cancel
         </Link>
         <Button type="submit" isLoading={isSubmitting}>
-          Submit Request
+          Submit request
         </Button>
       </div>
     </form>

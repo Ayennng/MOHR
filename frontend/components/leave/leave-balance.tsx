@@ -1,10 +1,9 @@
 'use client';
 
-import { Calendar, Heart, User, Clock } from 'lucide-react';
 import { useApi } from '@/lib/api';
 import { percent } from '@/lib/format';
 import { Card } from '@/components/ui/layout';
-import { StatCard, type StatTone } from '@/components/ui/stat-card';
+import { StatCard, Stats } from '@/components/ui/stat-card';
 
 type Days = { total: number; used: number; available: number };
 
@@ -15,37 +14,38 @@ export interface LeaveBalance {
   pendingRequests: number;
 }
 
-const TYPES: { key: 'vacationDays' | 'sickDays' | 'personalDays'; label: string; icon: React.ReactNode; tone: StatTone; bar: string }[] = [
-  { key: 'vacationDays', label: 'Vacation Days', icon: <Calendar size={22} />, tone: 'mint', bar: 'bg-mint-500' },
-  { key: 'sickDays', label: 'Sick Days', icon: <Heart size={22} />, tone: 'rose', bar: 'bg-rose-500' },
-  { key: 'personalDays', label: 'Personal Days', icon: <User size={22} />, tone: 'amber', bar: 'bg-amber-500' },
+const TYPES: { key: 'vacationDays' | 'sickDays' | 'personalDays'; label: string }[] = [
+  { key: 'vacationDays', label: 'Vacation' },
+  { key: 'sickDays', label: 'Sick' },
+  { key: 'personalDays', label: 'Personal' },
 ];
 
 /**
- * The signed-in user's days left this year: one card per leave type plus their pending
- * requests, or (compact) one card listing the three types.
+ * The signed-in user's days left this year: one stat per leave type plus their pending
+ * requests, or (compact) one card listing the three types. The bars are green because
+ * they show what is left.
  */
 export function LeaveBalanceCards({ compact = false }: { compact?: boolean }) {
   const { data: balance } = useApi<LeaveBalance>('/api/leave/balance');
 
   if (compact) {
     return (
-      <Card title="Your Balance">
-        <ul className="space-y-5">
-          {TYPES.map(({ key, label, icon, bar }) => {
+      <Card title="Days left this year">
+        <ul className="space-y-4">
+          {TYPES.map(({ key, label }) => {
             const days = balance?.[key];
             return (
               <li key={key}>
-                <div className="mb-2 flex items-center gap-3">
-                  <span className="grid size-9 place-items-center rounded-xl bg-mint-100 text-mint-800">{icon}</span>
-                  <span className="flex-1 text-sm font-semibold text-mint-950">{label}</span>
-                  <span className="font-display text-lg font-bold tabular-nums text-mint-950">
-                    {days ? `${days.available}/${days.total}` : '…'}
+                <div className="mb-2 flex items-baseline justify-between gap-3 text-sm">
+                  <span className="text-ink-700">{label}</span>
+                  <span className="tabular-nums text-ink-500">
+                    <span className="font-medium text-ink-900">{days ? days.available : '…'}</span>
+                    {days && ` of ${days.total}`}
                   </span>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-mint-100">
+                <div className="h-1 w-full overflow-hidden rounded-full bg-ink-100">
                   <div
-                    className={`h-full w-full origin-left rounded-full transition-transform duration-[600ms] ease-out-soft ${bar}`}
+                    className="h-full w-full origin-left rounded-full bg-mint-500 transition-transform duration-600 ease-out-soft"
                     style={{ transform: `scaleX(${days ? percent(days.available, days.total) / 100 : 0})` }}
                   />
                 </div>
@@ -58,29 +58,20 @@ export function LeaveBalanceCards({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4 stagger">
-      {TYPES.map(({ key, label, icon, tone }) => {
+    <Stats cols={4}>
+      {TYPES.map(({ key, label }) => {
         const days = balance?.[key];
         return (
           <StatCard
             key={key}
-            label={label}
+            label={`${label} days left`}
             value={days?.available ?? '…'}
-            icon={icon}
-            tone={tone}
-            badge={days && `${days.available}/${days.total}`}
             progress={days ? percent(days.available, days.total) : 0}
-            hint={days && `${percent(days.available, days.total)}% left this year`}
+            hint={days ? `${days.used} used of ${days.total} this year` : ' '}
           />
         );
       })}
-      <StatCard
-        label="Pending"
-        value={balance?.pendingRequests ?? '…'}
-        icon={<Clock size={22} />}
-        tone="sky"
-        hint="Requests awaiting approval"
-      />
-    </div>
+      <StatCard label="Pending requests" value={balance?.pendingRequests ?? '…'} hint="Waiting for a decision" />
+    </Stats>
   );
 }

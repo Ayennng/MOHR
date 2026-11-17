@@ -17,12 +17,12 @@ export function FormField({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-semibold text-mint-900">
+      <span className="mb-1.5 block text-sm font-medium text-ink-800">
         {label}
         {required && <span className="ml-0.5 text-rose-600">*</span>}
       </span>
       {children}
-      {error && <span className="mt-1.5 block text-sm text-rose-700 animate-fade">{error}</span>}
+      {error && <span className="mt-1.5 block text-xs text-rose-700 animate-fade">{error}</span>}
     </label>
   );
 }
@@ -37,10 +37,10 @@ export function PasswordInput(props: InputHTMLAttributes<HTMLInputElement>) {
       <button
         type="button"
         onClick={() => setVisible(!visible)}
-        className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-mint-700 transition-colors duration-200 hover:bg-mint-100 hover:text-mint-950"
+        className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-ink-500 transition-colors duration-150 hover:bg-ink-100 hover:text-ink-900"
         aria-label={visible ? 'Hide password' : 'Show password'}
       >
-        {visible ? <Eye size={18} /> : <EyeOff size={18} />}
+        {visible ? <Eye size={16} /> : <EyeOff size={16} />}
       </button>
     </div>
   );

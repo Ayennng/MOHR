@@ -31,21 +31,21 @@ export default function AddEmployeePage() {
   return (
     <>
       <PageHeader
-        back={{ href: '/employees', label: 'Back to employees' }}
-        title="Add New Employee"
-        description="Create an account and employee record"
+        back={{ href: '/employees', label: 'Employees' }}
+        title="Add employee"
+        description="Creates their sign-in and their employee record"
       />
 
-      <Card>
+      <Card className="max-w-3xl">
         {created ? (
           <div className="space-y-4">
-            <h2 className="text-xl font-bold text-mint-900">Employee {created.employeeId} created</h2>
-            <p className="text-mint-700">
-              Give <strong>{created.email}</strong> this temporary password. It is shown only once; ask them to
+            <h2 className="text-lg font-semibold text-ink-900">Employee {created.employeeId} created</h2>
+            <p className="text-[15px] text-ink-600">
+              Give <span className="font-medium text-ink-900">{created.email}</span> this temporary password. It is shown only once; ask them to
               change it from their profile after signing in.
             </p>
             <div className="flex items-center gap-3">
-              <code className="rounded-xl bg-mint-200 px-4 py-2 font-mono text-lg font-semibold text-mint-950 animate-pop">
+              <code className="rounded-lg border border-ink-900/8 bg-ink-50 px-3 py-1.5 font-mono text-base text-ink-900">
                 {created.temporaryPassword}
               </code>
               <Button variant="ghost" onClick={copyPassword}>
@@ -69,7 +69,7 @@ export default function AddEmployeePage() {
             </div>
           </div>
         ) : (
-          <EmployeeForm onSubmit={handleSubmit} submitText="Create Employee" />
+          <EmployeeForm onSubmit={handleSubmit} submitText="Create employee" />
         )}
       </Card>
     </>

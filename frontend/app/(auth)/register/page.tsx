@@ -8,7 +8,10 @@ export const metadata = {
 
 export default function RegisterPage() {
   return (
-    <AuthHero title="Join Our Growth" subtitle="Start your journey with us. Simple, secure, and seamless HR management.">
+    <AuthHero
+      title="Your workday, in one place"
+      subtitle="Check in, request leave and book meeting rooms from one account."
+    >
       <RegisterForm />
     </AuthHero>
   );

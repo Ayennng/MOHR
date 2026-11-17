@@ -7,6 +7,6 @@ export { Modal, ModalActions } from './modal';
 export { Pagination } from './pagination';
 export { Segmented } from './segmented';
 export { PageSpinner, Spinner } from './spinner';
-export { StatCard } from './stat-card';
+export { StatCard, Stats } from './stat-card';
 export { Table } from './table';
 export type { Column } from './table';

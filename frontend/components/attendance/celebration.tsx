@@ -1,5 +1,5 @@
 const DOTS = 10;
-const COLORS = ['bg-mint-300', 'bg-mint-200', 'bg-amber-300', 'bg-mint-400', 'bg-sky-300'];
+const COLORS = ['bg-mint-300', 'bg-mint-200', 'bg-mint-400', 'bg-mint-100'];
 
 /**
  * A one-off burst of dots, played when `run` changes (pass a counter). Purely

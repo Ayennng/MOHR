@@ -29,31 +29,31 @@ export default function RequestLeavePage() {
   return (
     <>
       <PageHeader
-        back={{ href: '/leave', label: 'Back to Leave Management' }}
-        title="Request Leave"
-        description="Submit a new leave request for approval"
+        back={{ href: '/leave', label: 'Leave' }}
+        title="Request leave"
+        description="A manager or admin approves it, and you see the decision under Leave"
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card title="Leave Request Form" className="lg:col-span-2">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+        <Card title="Your request" className="lg:col-span-2">
           {submitted ? (
-            <div className="text-center py-12">
-              <div className="mb-6 inline-grid size-20 place-items-center rounded-full bg-mint-200 text-mint-900 animate-pop">
-                <Check size={40} />
+            <div className="py-12 text-center">
+              <div className="mb-5 inline-grid size-12 place-items-center rounded-full bg-mint-200 text-mint-900 animate-pop">
+                <Check size={22} />
               </div>
-              <h3 className="text-2xl font-bold text-mint-900 mb-3">Request Submitted!</h3>
-              <p className="text-mint-700 mb-8">Your leave request is pending approval.</p>
-              <div className="flex gap-4 justify-center">
+              <h3 className="text-lg font-semibold text-ink-900">Request submitted</h3>
+              <p className="mt-1 mb-6 text-[15px] text-ink-600">It is waiting for approval.</p>
+              <div className="flex justify-center gap-2">
                 <Button
                   onClick={() => {
                     setSubmitted(false);
                     setFormKey((k) => k + 1);
                   }}
                 >
-                  Submit Another Request
+                  Submit another
                 </Button>
                 <Link href="/leave" className={buttonClass('outline')}>
-                  View All Requests
+                  View requests
                 </Link>
               </div>
             </div>
@@ -65,10 +65,10 @@ export default function RequestLeavePage() {
         <div className="space-y-6">
           <LeaveBalanceCards compact />
           <Card title="Good to know">
-            <ul className="space-y-3 text-sm text-mint-800">
+            <ul className="space-y-3 text-sm text-ink-600">
               {RULES.map((rule) => (
                 <li key={rule} className="flex gap-3">
-                  <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-mint-500" />
+                  <span aria-hidden className="mt-2 size-1 shrink-0 rounded-full bg-ink-400" />
                   {rule}
                 </li>
               ))}

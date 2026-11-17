@@ -30,8 +30,8 @@ interface User {
 const TIMEZONES = ['UTC', ...Intl.supportedValuesOf('timeZone').filter((tz) => tz !== 'UTC')];
 
 const TABS = [
-  { id: 'general', label: 'General Settings', icon: Building },
-  { id: 'users', label: 'User Management', icon: Users },
+  { id: 'general', label: 'Company', icon: Building },
+  { id: 'users', label: 'Users', icon: Users },
 ] as const;
 
 function GeneralSettings({ initial }: { initial: Settings }) {
@@ -47,7 +47,7 @@ function GeneralSettings({ initial }: { initial: Settings }) {
     setMessage(null);
     try {
       setSettings(await api<Settings>('/api/settings', { method: 'PUT', json: settings }));
-      setMessage({ tone: 'success', text: 'Settings saved.' });
+      setMessage({ tone: 'success', text: 'Settings saved' });
     } catch (err) {
       setMessage({ tone: 'error', text: err instanceof Error ? err.message : 'Failed to save settings' });
     } finally {
@@ -56,17 +56,17 @@ function GeneralSettings({ initial }: { initial: Settings }) {
   };
 
   return (
-    <Card title="General Settings">
+    <Card title="Company" className="max-w-3xl">
       <div className="space-y-5">
         {message && <Alert tone={message.tone}>{message.text}</Alert>}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Company Name">
+          <Field label="Company name">
             <input value={settings.companyName} onChange={set('companyName')} className={inputClass} />
           </Field>
-          <Field label="Company Email">
+          <Field label="Company email">
             <input type="email" value={settings.companyEmail} onChange={set('companyEmail')} className={inputClass} />
           </Field>
-          <Field label="Time Zone" hint="Used for attendance dates, the 09:30 late cut-off and booking times.">
+          <Field label="Time zone" hint="Sets what counts as today, the 09:30 late cut-off and booking times">
             <select value={settings.timezone} onChange={set('timezone')} className={inputClass}>
               {TIMEZONES.map((tz) => (
                 <option key={tz} value={tz}>
@@ -76,15 +76,15 @@ function GeneralSettings({ initial }: { initial: Settings }) {
             </select>
           </Field>
         </div>
-        <Field label="Company Address">
+        <Field label="Company address">
           <textarea value={settings.companyAddress} onChange={set('companyAddress')} className={inputClass} rows={3} />
         </Field>
       </div>
 
-      <div className="flex justify-end mt-6 pt-6 border-t border-mint-100">
+      <div className="mt-6 flex justify-end border-t border-ink-900/8 pt-5">
         <Button onClick={handleSave} isLoading={saving}>
-          <Save size={18} />
-          Save Changes
+          <Save size={16} />
+          Save changes
         </Button>
       </div>
     </Card>
@@ -115,36 +115,37 @@ function UserManagement({ currentUserId }: { currentUserId?: string }) {
 
   return (
     <Card
-      title="User Management"
-      description="Change roles and deactivate accounts. Deactivated users can't sign in; their history is kept."
+      title="Users"
+      description="Change roles and deactivate accounts. Deactivated users can’t sign in, and their history is kept."
       action={
-        <Link href="/employees/add" className={buttonClass()}>
-          <UserPlus size={18} />
-          Add New User
+        <Link href="/employees/add" className={buttonClass('outline', 'sm')}>
+          <UserPlus size={16} />
+          Add user
         </Link>
       }
     >
       <div className="space-y-3">
         <Alert>{updateError ?? error}</Alert>
         {loading && <PageSpinner />}
+        <ul className="-mx-6 divide-y divide-ink-900/6 border-t border-ink-900/8">
         {users.map((user) => {
           const isSelf = user.id === currentUserId;
           const busy = updatingId === user.id;
           return (
-            <div key={user.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-mint-900/8 p-4 transition-colors duration-200 hover:bg-mint-50">
+            <li key={user.id} className="flex flex-wrap items-center justify-between gap-4 px-6 py-3 transition-colors duration-150 hover:bg-ink-50">
               <div>
-                <p className="font-semibold text-mint-900">
+                <p className="text-sm font-medium text-ink-900">
                   {user.firstName} {user.lastName}
-                  {isSelf && <span className="ml-2 text-xs text-mint-700">(you)</span>}
+                  {isSelf && <span className="ml-1.5 font-normal text-ink-500">(you)</span>}
                 </p>
-                <p className="text-sm text-mint-700">{user.email}</p>
+                <p className="text-[13px] text-ink-500">{user.email}</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <select
                   value={user.role}
                   disabled={isSelf || busy}
                   onChange={(e) => updateUser(user.id, { role: e.target.value as Role })}
-                  className="rounded-full border border-mint-900/15 bg-white px-3 py-1.5 text-sm font-medium text-mint-900 transition-colors hover:border-mint-900/30 disabled:opacity-60"
+                  className="h-8 rounded-full border border-ink-900/12 bg-white px-3 text-[13px] text-ink-900 transition-colors duration-150 hover:border-ink-900/20 disabled:opacity-60"
                   title={isSelf ? 'You cannot change your own role' : 'Role'}
                 >
                   <option value="EMPLOYEE">Employee</option>
@@ -157,15 +158,16 @@ function UserManagement({ currentUserId }: { currentUserId?: string }) {
                     type="button"
                     disabled={busy}
                     onClick={() => updateUser(user.id, { active: !user.active })}
-                    className="rounded-full px-3 py-1.5 text-xs font-semibold text-mint-800 transition-colors hover:bg-mint-100 disabled:opacity-60"
+                    className="h-8 rounded-full px-3 text-[13px] font-medium text-ink-600 transition-colors duration-150 hover:bg-ink-100 hover:text-ink-900 disabled:opacity-60"
                   >
                     {user.active ? 'Deactivate' : 'Reactivate'}
                   </button>
                 )}
               </div>
-            </div>
+            </li>
           );
         })}
+        </ul>
       </div>
     </Card>
   );
@@ -181,14 +183,14 @@ export default function SettingsPage() {
 
   if (!isAdmin) {
     return (
-      <div className="max-w-xl mx-auto rounded-card border border-mint-900/8 bg-white p-10 text-center shadow-soft animate-rise">
-        <div className="mx-auto mb-5 grid size-14 place-items-center rounded-2xl bg-mint-200 text-mint-900">
-          <Lock size={26} />
+      <div className="mx-auto max-w-md rounded-card border border-ink-900/8 bg-white p-10 text-center shadow-soft animate-rise">
+        <div className="mx-auto mb-5 grid size-11 place-items-center rounded-xl bg-ink-100 text-ink-600">
+          <Lock size={20} />
         </div>
-        <h2 className="text-2xl font-bold text-mint-950 mb-2">Admins only</h2>
-        <p className="text-mint-700 mb-6">System settings are only accessible to administrators.</p>
+        <h1 className="text-2xl font-medium text-ink-900">Admins only</h1>
+        <p className="mt-2 mb-6 text-[15px] text-ink-600">Only administrators can change company settings.</p>
         <Link href="/dashboard" className={buttonClass()}>
-          Go to Dashboard
+          Go to dashboard
         </Link>
       </div>
     );
@@ -196,7 +198,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Admin" title="System Settings" description="Company configuration and user accounts" />
+      <PageHeader title="Settings" description="Company details and the people who can sign in" />
 
       <Segmented
         label="Settings sections"
@@ -211,7 +213,7 @@ export default function SettingsPage() {
         ) : settings.error ? (
           <Alert>{settings.error}</Alert>
         ) : (
-          <PageSpinner label="Loading settings..." />
+          <PageSpinner label="Loading settings" />
         ))}
       {tab === 'users' && <UserManagement currentUserId={session?.user?.id} />}
     </>

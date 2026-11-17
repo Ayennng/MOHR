@@ -14,13 +14,13 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
   return (
     <StatusPage
       code="500"
-      title="Oops! Something went wrong"
+      title="Something went wrong"
       actions={
         <>
-          <Button onClick={reset}>Try Again</Button>
+          <Button onClick={reset}>Try again</Button>
           <Link href="/dashboard" className={buttonClass('outline')}>
-            <Home size={20} />
-            Go to Dashboard
+            <Home size={16} />
+            Go to dashboard
           </Link>
         </>
       }

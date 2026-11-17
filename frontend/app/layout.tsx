@@ -11,7 +11,7 @@ const body = Figtree({ subsets: ['latin'], variable: '--font-figtree', display: 
 
 export const metadata: Metadata = {
   title: 'MoHR - Management of Human Resources',
-  description: 'Modern HR management system',
+  description: 'Leave, attendance and room booking for your team',
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -62,12 +62,12 @@ export function EmployeeForm({
   );
 
   return (
-    <form onSubmit={handleSubmit(submit)} className="space-y-6">
+    <form onSubmit={handleSubmit(submit)} className="space-y-5">
       <Alert>{error}</Alert>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {field('firstName', 'First Name', <input {...register('firstName')} className={inputClass} placeholder="John" />)}
-        {field('lastName', 'Last Name', <input {...register('lastName')} className={inputClass} placeholder="Doe" />)}
+      <div className="grid grid-cols-1 gap-x-4 gap-y-5 md:grid-cols-2">
+        {field('firstName', 'First name', <input {...register('firstName')} className={inputClass} placeholder="John" />)}
+        {field('lastName', 'Last name', <input {...register('lastName')} className={inputClass} placeholder="Doe" />)}
         {field('email', 'Email', <input {...register('email')} type="email" className={inputClass} placeholder="john@example.com" />)}
         {field('phone', 'Phone (optional)', <input {...register('phone')} type="tel" className={inputClass} placeholder="+60 12-345 6789" />)}
         {field('position', 'Position', <input {...register('position')} className={inputClass} placeholder="Software Engineer" />)}
@@ -81,17 +81,17 @@ export function EmployeeForm({
             </datalist>
           </>
         ))}
-        {field('hireDate', 'Hire Date', <input {...register('hireDate')} type="date" className={inputClass} />)}
+        {field('hireDate', 'Hire date', <input {...register('hireDate')} type="date" className={inputClass} />)}
         {showStatus && field('status', 'Status', (
           <select {...register('status')} className={inputClass}>
             <option value="ACTIVE">Active</option>
-            <option value="ON_LEAVE">On Leave</option>
+            <option value="ON_LEAVE">On leave</option>
             <option value="INACTIVE">Inactive</option>
           </select>
         ))}
       </div>
 
-      <div className="flex justify-end gap-3">
+      <div className="flex justify-end gap-2 border-t border-ink-900/8 pt-5">
         <Link href="/employees" className={buttonClass('ghost')}>
           Cancel
         </Link>

@@ -60,10 +60,10 @@ export default function AvatarUpload({
   return (
     <div className="space-y-4">
       <div className="flex flex-col items-center gap-6">
-        <div className="relative grid size-32 shrink-0 place-items-center overflow-hidden rounded-full bg-mint-200 ring-4 ring-white shadow-soft">
-          {shown ? <img src={shown} alt="Profile" className="w-full h-full object-cover" /> : <Camera size={44} className="text-mint-800" />}
+        <div className="relative grid size-24 shrink-0 place-items-center overflow-hidden rounded-full bg-ink-100">
+          {shown ? <img src={shown} alt="Profile" className="h-full w-full object-cover" /> : <Camera size={28} className="text-ink-400" />}
           {uploading && (
-            <div className="absolute inset-0 grid place-items-center bg-mint-950/50 text-mint-100 animate-fade">
+            <div className="absolute inset-0 grid place-items-center bg-ink-950/50 text-white animate-fade">
               <Spinner />
             </div>
           )}
@@ -72,16 +72,14 @@ export default function AvatarUpload({
         <div className="flex-1 w-full">
           <div
             {...getRootProps()}
-            className={`cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition-[border-color,background-color,transform] duration-200 ease-out-soft ${
-              isDragActive ? 'scale-[1.02] border-mint-600 bg-mint-100' : 'border-mint-900/20 hover:border-mint-600 hover:bg-mint-50'
+            className={`cursor-pointer rounded-xl border border-dashed p-5 text-center transition-[border-color,background-color] duration-150 ease-out-soft ${
+              isDragActive ? 'border-mint-600 bg-mint-50' : 'border-ink-900/20 hover:border-ink-900/40 hover:bg-ink-50'
             } ${uploading ? 'pointer-events-none opacity-50' : ''}`}
           >
             <input {...getInputProps()} />
-            <Upload size={32} className="mx-auto mb-2 text-mint-700" />
-            <p className="text-mint-900 font-semibold mb-1">
-              {isDragActive ? 'Drop image here...' : 'Click to upload or drag and drop'}
-            </p>
-            <p className="text-sm text-mint-700">JPEG, PNG or WebP (max 5MB)</p>
+            <Upload size={20} className="mx-auto mb-2 text-ink-400" />
+            <p className="text-sm font-medium text-ink-900">{isDragActive ? 'Drop to upload' : 'Upload a photo'}</p>
+            <p className="mt-0.5 text-xs text-ink-500">JPEG, PNG or WebP, up to 5MB</p>
           </div>
 
           {currentAvatar && !preview && (
@@ -89,10 +87,10 @@ export default function AvatarUpload({
               type="button"
               onClick={remove}
               disabled={uploading}
-              className="mt-3 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-rose-700 transition-colors hover:bg-rose-50 disabled:opacity-50"
+              className="mx-auto mt-3 flex h-8 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-rose-700 transition-colors duration-150 hover:bg-rose-50 disabled:opacity-50"
             >
-              <X size={16} />
-              Remove Picture
+              <X size={14} />
+              Remove photo
             </button>
           )}
         </div>

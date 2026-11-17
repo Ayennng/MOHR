@@ -7,15 +7,15 @@ export default function NotFound() {
   return (
     <StatusPage
       code="404"
-      title="Page Not Found"
+      title="Page not found"
       actions={
         <Link href="/dashboard" className={buttonClass()}>
-          <Home size={20} />
-          Go to Dashboard
+          <Home size={16} />
+          Go to dashboard
         </Link>
       }
     >
-      Sorry, the page you&apos;re looking for doesn&apos;t exist or has been moved.
+      This page doesn&apos;t exist, or it has moved.
     </StatusPage>
   );
 }

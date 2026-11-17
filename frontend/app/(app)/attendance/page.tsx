@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { LogIn, LogOut, CheckCircle, AlertCircle, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LogIn, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api, useApi } from '@/lib/api';
 import { formatDate, formatMinutes, formatMonth, formatTime } from '@/lib/format';
 import { sortRows, useSort } from '@/lib/sort';
-import { Alert, Button, Card, Column, PageHeader, StatCard, StatusBadge, Table } from '@/components/ui';
+import { Alert, Button, Card, Column, PageHeader, StatCard, Stats, StatusBadge, Table } from '@/components/ui';
 import AttendanceConfirmationModal from '@/components/attendance/attendance-confirmation-modal';
 import { LiveClock } from '@/components/attendance/live-clock';
 import { Celebration } from '@/components/attendance/celebration';
@@ -34,8 +34,8 @@ function shiftMonth(month: string, delta: number) {
 
 const columns: Column<AttendanceRecord>[] = [
   { key: 'date', label: 'Date', sortable: true, render: (r) => formatDate(r.date) },
-  { key: 'checkInTime', label: 'Check In', render: (r) => (r.checkInTime ? formatTime(r.checkInTime) : '-') },
-  { key: 'checkOutTime', label: 'Check Out', render: (r) => (r.checkOutTime ? formatTime(r.checkOutTime) : '-') },
+  { key: 'checkInTime', label: 'Check in', render: (r) => (r.checkInTime ? formatTime(r.checkInTime) : '-') },
+  { key: 'checkOutTime', label: 'Check out', render: (r) => (r.checkOutTime ? formatTime(r.checkOutTime) : '-') },
   { key: 'duration', label: 'Duration', sortable: true, render: (r) => (r.duration != null ? formatMinutes(r.duration) : '-') },
   { key: 'status', label: 'Status', sortable: true, render: (r) => <StatusBadge status={r.status} /> },
 ];
@@ -80,21 +80,28 @@ export default function AttendancePage() {
     <>
       <AttendanceConfirmationModal type={confirming} onClose={() => setConfirming(null)} onConfirm={handleConfirm} />
 
-      <PageHeader eyebrow="Attendance" title="Attendance Tracking" description="Monitor your daily presence and work hours" />
+      <PageHeader title="Attendance" description="Your check-ins and hours, month by month" />
 
-      <section className="relative overflow-hidden rounded-card bg-mint-950 p-8 md:p-10 text-mint-100">
-        <div className="relative flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+      <section className="rounded-panel bg-mint-950 p-6 text-mint-100 md:p-8">
+        <div className="flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-end">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-mint-300">Current time</p>
-            <LiveClock className="font-display text-6xl md:text-7xl font-bold tabular-nums text-mint-200" />
-            <LiveClock format="date" className="mt-3 text-lg text-mint-100/80" />
+            <p className="text-sm text-mint-300">Current time</p>
+            <LiveClock className="mt-2 font-display text-6xl font-medium tracking-[-0.02em] tabular-nums text-mint-200 md:text-7xl" />
+            <LiveClock format="date" className="mt-3 text-[15px] text-mint-100/75" />
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch gap-3">
+          <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center">
+            <div className="relative min-w-40 rounded-2xl border border-mint-100/12 px-5 py-3">
+              <Celebration run={celebrate} />
+              <p className="text-xs text-mint-300">Today</p>
+              <p key={todayLabel} className="mt-0.5 font-display text-xl font-medium text-mint-200 animate-fade">
+                {todayLabel}
+              </p>
+            </div>
             {checkedIn ? (
-              <Button size="lg" variant="danger" onClick={() => setConfirming('checkout')} className="px-8">
-                <LogOut size={22} />
-                Check Out
+              <Button size="lg" variant="danger" onClick={() => setConfirming('checkout')} className="px-7">
+                <LogOut size={18} />
+                Check out
               </Button>
             ) : (
               <Button
@@ -102,59 +109,52 @@ export default function AttendancePage() {
                 variant="secondary"
                 onClick={() => setConfirming('checkin')}
                 disabled={doneForToday || !data}
-                className="px-8"
+                className="px-7"
               >
-                <LogIn size={22} />
-                Check In
+                <LogIn size={18} />
+                Check in
               </Button>
             )}
-            <div className="relative min-w-40 rounded-2xl border border-mint-100/15 bg-mint-100/10 px-6 py-3 text-center">
-              <Celebration run={celebrate} />
-              <p className="text-xs font-semibold uppercase tracking-wide text-mint-300">Today</p>
-              <p key={todayLabel} className="font-display text-2xl font-bold text-mint-200 animate-pop">{todayLabel}</p>
-            </div>
           </div>
         </div>
       </section>
 
       <Alert>{actionError}</Alert>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 stagger">
-        <StatCard label="Days Attended" value={attended} icon={<CheckCircle size={22} />} tone="ink" hint={monthLabel} />
-        <StatCard label="Late Arrivals" value={late} icon={<AlertCircle size={24} />} tone="amber" hint={`Check-ins after 09:30 in ${monthLabel}`} />
+      <Stats cols={3}>
+        <StatCard label="Days attended" value={attended} hint={monthLabel || ' '} />
+        <StatCard label="Late arrivals" value={late} hint={`Check-ins after 09:30${monthLabel ? ` in ${monthLabel}` : ''}`} />
         <StatCard
-          label="Daily Average"
+          label="Daily average"
           value={avgMinutes ? `${(avgMinutes / 60).toFixed(1)}h` : '-'}
-          icon={<TrendingUp size={24} />}
-          tone="mint"
           hint="Hours worked per completed day"
         />
-      </div>
+      </Stats>
 
       <Card
-        title="Attendance History"
+        title="History"
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => data && setMonth(shiftMonth(data.month, -1))}
               disabled={!data || loading}
-              className="p-2 rounded-full hover:bg-mint-100 text-mint-700 disabled:opacity-40"
+              className="grid size-8 place-items-center rounded-full text-ink-500 transition-colors duration-150 hover:bg-ink-100 hover:text-ink-900 disabled:opacity-40"
               aria-label="Previous month"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </button>
-            <span className="text-sm text-mint-900 bg-mint-100 px-4 py-2 rounded-full font-semibold border border-mint-200 min-w-36 text-center">
+            <span className="min-w-32 text-center text-sm font-medium tabular-nums text-ink-900">
               {monthLabel}
             </span>
             <button
               type="button"
               onClick={() => data && setMonth(shiftMonth(data.month, 1))}
               disabled={!data || loading || data.month >= data.today.slice(0, 7)}
-              className="p-2 rounded-full hover:bg-mint-100 text-mint-700 disabled:opacity-40"
+              className="grid size-8 place-items-center rounded-full text-ink-500 transition-colors duration-150 hover:bg-ink-100 hover:text-ink-900 disabled:opacity-40"
               aria-label="Next month"
             >
-              <ChevronRight size={18} />
+              <ChevronRight size={16} />
             </button>
           </div>
         }

@@ -60,23 +60,23 @@ export default function ChangePasswordForm() {
   );
 
   return (
-    <Card title="Change Password">
+    <Card title="Password">
       <form onSubmit={handleSubmit} className="space-y-5">
         <Alert>{error}</Alert>
-        {success && <Alert tone="success">Password changed.</Alert>}
+        {success && <Alert tone="success">Password changed</Alert>}
 
-        <Field label="Current Password">{input('currentPassword', 'current-password')}</Field>
+        <Field label="Current password">{input('currentPassword', 'current-password')}</Field>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="New Password" hint="At least 8 characters, including a letter and a number.">
+          <Field label="New password" hint="At least 8 characters, with a letter and a number">
             {input('newPassword', 'new-password')}
           </Field>
-          <Field label="Confirm New Password">{input('confirmPassword', 'new-password')}</Field>
+          <Field label="Confirm new password">{input('confirmPassword', 'new-password')}</Field>
         </div>
 
-        <div className="flex justify-end pt-6 border-t border-mint-100">
+        <div className="flex justify-end border-t border-ink-900/8 pt-5">
           <Button type="submit" isLoading={saving}>
-            <KeyRound size={18} />
-            Change Password
+            <KeyRound size={16} />
+            Change password
           </Button>
         </div>
       </form>
