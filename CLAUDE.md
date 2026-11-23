@@ -47,4 +47,4 @@ a large change. `backend/BACKEND_DOCUMENTATION.md` documents every API route, an
 ## Working style
 
 - Keep changes small and match the surrounding code. Don't add dependencies without asking.
-- Don't commit `.env` files or secrets. Don't push or deploy unless asked: `main` deploys to Render.
+- Don't commit `.env` files or secrets. Don't push or deploy unless asked: `main` deploys to Vercel.

@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Ayennng/MOHR/actions/workflows/ci.yml/badge.svg)](https://github.com/Ayennng/MOHR/actions/workflows/ci.yml)
 
-**Live demo:** [mohr-hr.onrender.com](https://mohr-hr.onrender.com). Pick **Admin**, **Manager** or **Employee** on the login page to sign in to a sample company; the data resets every night. On weekdays from 08:00 to 22:00 Malaysia time it's kept awake; outside those hours the first visit takes about a minute.
+**Live demo:** moving from Render to Vercel; the link goes here once it's live. Pick **Admin**, **Manager** or **Employee** on the login page to sign in to a sample company; the data resets every night.
 
 **Theme**: quiet paper-grey neutrals with green (`#C2F8CB` mint, `#134429` forest) as the trademark, Bricolage Grotesque + Figtree, quick soft motion. See [frontend/DESIGN.md](frontend/DESIGN.md).
 
@@ -170,26 +170,25 @@ MOHR/
 
 ## 🚢 Deployment notes
 
-### Render
+### Vercel
 
-[`render.yaml`](render.yaml) runs both apps on Render's free plan in the Singapore region. The database lives elsewhere: [Neon](https://neon.tech)'s free Postgres works and, unlike Render's free database, doesn't expire after 30 days. Free services sleep after 15 minutes idle, so the first visit after that takes about a minute.
+Both apps run on Vercel's free Hobby plan as two projects from this one repository, with their functions in Singapore (`sin1`). Nothing sleeps, so there is nothing to keep awake. The database lives elsewhere: [Neon](https://neon.tech)'s free Postgres works. Each app's `vercel.json` builds production deployments only (pushes to `main`), so a branch can never run its migrations against the live database.
 
 1. Create a Neon project (region: Singapore) and copy its connection string with **connection pooling turned off**.
-2. In the Render Dashboard choose **Blueprints → New Blueprint Instance**, pick the repository and paste the connection string when asked for `DATABASE_URL`. Render generates the shared `NEXTAUTH_SECRET`, sets `BACKEND_URL` and `NEXTAUTH_URL`, and the backend build runs `prisma migrate deploy`.
-3. Register at the frontend's `onrender.com` URL, then promote yourself from your own machine (free services have no shell): in `backend/`, run `DATABASE_URL="<neon connection string>" node scripts/make-admin.mjs you@example.com`.
+2. In Vercel, **Add New → Project**, import the repository and set **Root Directory** to `backend`. Add the environment variables `DATABASE_URL` (the Neon string) and `NEXTAUTH_SECRET` (any long random string, e.g. `openssl rand -base64 32`), then deploy. The build runs `prisma migrate deploy`.
+3. Import the repository again as a second project with **Root Directory** `frontend`. Add `NEXTAUTH_SECRET` (the same value as the backend's), `BACKEND_URL` (the backend's `https://….vercel.app` URL), `NEXTAUTH_URL` (this project's own `https://….vercel.app` URL) and, for the demo, `DEMO_MODE=true`. Deploy.
+4. Register at the frontend's URL, then promote yourself from your own machine: in `backend/`, run `DATABASE_URL="<neon connection string>" node scripts/make-admin.mjs you@example.com`.
 
-After adding a custom domain, set the frontend's `NEXTAUTH_URL` to it.
+After adding a custom domain, set the frontend's `NEXTAUTH_URL` to it. Uploads are capped at 4MB because Vercel limits a function's request body to 4.5MB.
 
-**Keeping it awake.** On weekdays from 08:00 to 22:00 Malaysia time, the frontend requests its own public `/api/health` every 10 minutes ([`frontend/lib/keep-awake.ts`](frontend/lib/keep-awake.ts)). That route also pings the backend's `/api/health`, so both services stay awake, and neither route touches the database. [`.github/workflows/wake.yml`](.github/workflows/wake.yml) wakes both at 07:45 on weekdays; if it runs late, the first visitor wakes them instead. Don't use an external uptime pinger such as cron-job.org: Render answered its requests to the sleeping services with 429 or 503 instead of waking them, and cron-job.org disables a job after 26 failures in a row. Render gives a workspace 750 free instance hours a month, and two services awake around the clock would need about 1,490; working hours use about 650. Outside them the services sleep, and the login page wakes the backend in the background while the visitor types. To change the hours, edit `keep-awake.ts` and the workflow's schedule.
-
-**Demo mode.** With `DEMO_MODE=true` on the frontend (set in `render.yaml`), the login page offers one-click sign-in to three shared accounts (`demo.admin`, `demo.manager` and `demo.employee` `@example.com`, password `Demo1234`). The API refuses password, profile and avatar changes for them, as well as role or status changes to them, so one visitor can't lock out the next. [`.github/workflows/reset-demo.yml`](.github/workflows/reset-demo.yml) wipes the database and reloads the sample company at 00:30 Malaysia time each night: add the Neon connection string as the `DEMO_DATABASE_URL` repository secret, then run the workflow once from the **Actions** tab. Only use this on a database that holds nothing but demo data. GitHub pauses scheduled workflows after 60 days without commits; re-enable it from the Actions tab if that happens. For a real company, leave `DEMO_MODE` unset and don't add the secret.
+**Demo mode.** With `DEMO_MODE=true` on the frontend, the login page offers one-click sign-in to three shared accounts (`demo.admin`, `demo.manager` and `demo.employee` `@example.com`, password `Demo1234`). The API refuses password, profile and avatar changes for them, as well as role or status changes to them, so one visitor can't lock out the next. [`.github/workflows/reset-demo.yml`](.github/workflows/reset-demo.yml) wipes the database and reloads the sample company at 00:30 Malaysia time each night: add the Neon connection string as the `DEMO_DATABASE_URL` repository secret, then run the workflow once from the **Actions** tab. Only use this on a database that holds nothing but demo data. GitHub pauses scheduled workflows after 60 days without commits; re-enable it from the Actions tab if that happens. For a real company, leave `DEMO_MODE` unset and don't add the secret.
 
 ### Any host
 
 - **Prefer exposing only the frontend.** The backend enforces auth on every route, but if your host has a private network, keep it there.
 - **Uploads are stored in the database**, so the apps need no persistent disk.
-- **Run one instance of each app.** Login rate limits are kept in memory per process. To run several instances, move them to a shared store such as Redis.
-- **Set `X-Forwarded-For` at your reverse proxy** so the per-IP sign-in limit sees real client addresses.
+- **Login rate limits are kept in memory per instance.** On a single server that is exact. On Vercel, functions may run as several instances, each with its own count, so the limits are looser; move them to a shared store (the database or Redis) for strict limits.
+- **Set `X-Forwarded-For` at your reverse proxy** so the per-IP sign-in limit sees real client addresses (Vercel sets it for you).
 - Use HTTPS for the frontend's `NEXTAUTH_URL` in production.
 
 ---

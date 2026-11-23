@@ -7,7 +7,7 @@ import { deleteUpload, detectFileType, saveUpload } from '@/lib/uploads';
 import { rejectIfTooLarge } from '@/lib/validation';
 import { assertNotDemoAccount } from '@/lib/demo';
 
-const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_AVATAR_BYTES = 4 * 1024 * 1024; // 4MB: Vercel caps request bodies at 4.5MB
 const MAX_AVATAR_PIXELS = 4000;
 
 /** Points the user at `avatar` (or none), then deletes the file it replaces. */
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
     const file = (await request.formData()).get('avatar');
     if (!(file instanceof File) || file.size === 0) return jsonError(400, 'No file provided');
-    if (file.size > MAX_AVATAR_BYTES) return jsonError(400, 'File size exceeds 5MB limit');
+    if (file.size > MAX_AVATAR_BYTES) return jsonError(400, 'File size exceeds 4MB limit');
 
     const buffer = Buffer.from(await file.arrayBuffer());
 

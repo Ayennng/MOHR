@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { Check } from 'lucide-react';
 import { Alert, Button, Field, buttonClass, inputClass } from '@/components/ui';
 
-const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 
 const leaveSchema = z
   .object({
@@ -37,7 +37,7 @@ export function LeaveForm({ onSubmit }: { onSubmit: (data: FormData) => Promise<
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0] ?? null;
     if (selected && selected.size > MAX_ATTACHMENT_BYTES) {
-      setError('File size must be less than 5MB');
+      setError('File size must be 4MB or less');
       e.target.value = '';
       return;
     }
@@ -92,7 +92,7 @@ export function LeaveForm({ onSubmit }: { onSubmit: (data: FormData) => Promise<
         />
       </Field>
 
-      <Field label="Attachment (optional)" hint="PDF, JPG, PNG or WebP, up to 5MB">
+      <Field label="Attachment (optional)" hint="PDF, JPG, PNG or WebP, up to 4MB">
         <input
           type="file"
           onChange={handleFileChange}

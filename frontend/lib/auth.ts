@@ -74,8 +74,8 @@ export const authOptions: NextAuthOptions = {
           const body = await res.json().catch(() => ({}));
           throw new Error(body.error || 'Too many failed attempts. Try again later.');
         }
-        // Only a 401 means wrong credentials; anything else (e.g. Render's 502 while the
-        // backend wakes or redeploys) must not be reported as a wrong password
+        // Only a 401 means wrong credentials; anything else (e.g. a 5xx while the backend
+        // redeploys) must not be reported as a wrong password
         if (res.status === 401) return null;
         if (!res.ok) {
           console.error(`Auth error: backend login returned ${res.status}`);

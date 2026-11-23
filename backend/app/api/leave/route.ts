@@ -11,7 +11,7 @@ import { deleteUpload, detectFileType, saveUpload } from '@/lib/uploads';
 import { dateStringSchema, rejectIfTooLarge, validationError } from '@/lib/validation';
 import { parsePagination, parseSortDirection } from '@/lib/pagination';
 
-const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024; // 4MB: Vercel caps request bodies at 4.5MB
 // How far back a request may start (e.g. sick leave reported after the fact)
 const MAX_BACKDATE_DAYS = 30;
 const MAX_SPAN_DAYS = 365;
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   const authResult = await withAuth(req);
   if (authResult instanceof NextResponse) return authResult;
 
-  // 5MB attachment plus room for the text fields and multipart framing
+  // 4MB attachment plus room for the text fields and multipart framing
   const tooLarge = rejectIfTooLarge(req, MAX_ATTACHMENT_BYTES + 64 * 1024);
   if (tooLarge) return tooLarge;
 
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
 
     const attachment = formData.get('attachment');
     if (attachment instanceof File && attachment.size > 0) {
-      if (attachment.size > MAX_ATTACHMENT_BYTES) return jsonError(400, 'Attachment must be 5MB or smaller');
+      if (attachment.size > MAX_ATTACHMENT_BYTES) return jsonError(400, 'Attachment must be 4MB or smaller');
 
       const buffer = Buffer.from(await attachment.arrayBuffer());
       // Decide the type from the file's bytes, never from its name

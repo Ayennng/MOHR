@@ -3,7 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { BACKEND_URL } from '@/lib/backend-url';
 
-const MAX_BODY_BYTES = 6 * 1024 * 1024; // 5MB file + multipart overhead
+// 4MB file + multipart overhead, under Vercel's 4.5MB request body limit
+const MAX_BODY_BYTES = 4 * 1024 * 1024 + 256 * 1024;
 
 /**
  * Forwards a request to the backend API.
@@ -36,9 +37,9 @@ export async function proxyToBackend(
   const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
 
   // The body is buffered below, so refuse anything bigger than the largest legitimate
-  // request (5MB uploads) before reading it
+  // request (4MB uploads) before reading it
   if (hasBody && Number(request.headers.get('content-length')) > MAX_BODY_BYTES) {
-    return NextResponse.json({ error: 'Request too large (max 5MB)' }, { status: 413 });
+    return NextResponse.json({ error: 'Request too large (max 4MB)' }, { status: 413 });
   }
 
   try {

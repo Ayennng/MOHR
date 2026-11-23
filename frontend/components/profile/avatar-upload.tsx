@@ -7,7 +7,7 @@ import { Upload, X, Camera } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Alert, Spinner } from '@/components/ui';
 
-const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_BYTES = 4 * 1024 * 1024;
 
 /** Drop zone that uploads a new profile picture, plus a remove button. Reports the new avatar URL (or null). */
 export default function AvatarUpload({
@@ -35,7 +35,7 @@ export default function AvatarUpload({
   };
 
   const upload = (file: File) => {
-    if (file.size > MAX_BYTES) return setError('File size exceeds 5MB limit');
+    if (file.size > MAX_BYTES) return setError('File size exceeds 4MB limit');
 
     const reader = new FileReader();
     reader.onload = () => setPreview(reader.result as string);
@@ -79,7 +79,7 @@ export default function AvatarUpload({
             <input {...getInputProps()} />
             <Upload size={20} className="mx-auto mb-2 text-ink-400" />
             <p className="text-sm font-medium text-ink-900">{isDragActive ? 'Drop to upload' : 'Upload a photo'}</p>
-            <p className="mt-0.5 text-xs text-ink-500">JPEG, PNG or WebP, up to 5MB</p>
+            <p className="mt-0.5 text-xs text-ink-500">JPEG, PNG or WebP, up to 4MB</p>
           </div>
 
           {currentAvatar && !preview && (
