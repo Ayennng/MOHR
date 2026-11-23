@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/Ayennng/MOHR/actions/workflows/ci.yml/badge.svg)](https://github.com/Ayennng/MOHR/actions/workflows/ci.yml)
 
-**Live demo:** moving from Render to Vercel; the link goes here once it's live. Pick **Admin**, **Manager** or **Employee** on the login page to sign in to a sample company; the data resets every night.
+**Live demo:** [demo-mohr.vercel.app](https://demo-mohr.vercel.app). Pick **Admin**, **Manager** or **Employee** on the login page to sign in to a sample company; the data resets every night.
 
 **Theme**: quiet paper-grey neutrals with green (`#C2F8CB` mint, `#134429` forest) as the trademark, Bricolage Grotesque + Figtree, quick soft motion. See [frontend/DESIGN.md](frontend/DESIGN.md).
 
